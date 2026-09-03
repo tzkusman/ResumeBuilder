@@ -1,3 +1,4 @@
+
 name: Release desktop app
 
 # The desktop app wraps the live Vercel site, so a release only packages the

@@ -47,7 +47,8 @@ function SectionShell({ title, hint, children, open, onToggle }: { title: string
 export default function Builder() {
   const { resume, setResume, loadRole, savedAt, saveToCloud } = useResume();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isPro, freeExportsLeft, consumeDownload } = useAuth();
+  const [gate, setGate] = useState<null | "signin" | "upgrade">(null);
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState("contact");
   const [showAts, setShowAts] = useState(false);
@@ -105,15 +106,26 @@ export default function Builder() {
 
   const onExport = (kind: "pdf" | "docx" | "txt" | "share") => {
     setExportOpen(false);
-    if (kind === "pdf") { printPdf(); trackDownload("pdf"); }
-    if (kind === "docx") { downloadDocx(resume); trackDownload("docx"); toast("DOCX downloaded — opens in Word or Google Docs.", "ok"); }
-    if (kind === "txt") { downloadTxt(resume); trackDownload("txt"); toast("Plain text downloaded — paste it into any portal.", "ok"); }
+    // Share links stay free for everyone — they're the viral loop.
     if (kind === "share") {
       const url = shareUrl(resume);
       navigator.clipboard?.writeText(url).catch(() => {});
       track("share", {});
       toast("Share link copied to clipboard.", "ok");
+      return;
     }
+    // Subscription gate: guest → sign in, free → 1 export per account, Pro → unlimited.
+    const res = consumeDownload();
+    if (!res.allowed) {
+      setGate(res.reason === "guest" ? "signin" : "upgrade");
+      track("upgrade_view", { trigger: res.reason === "guest" ? "export_guest" : "export_limit", format: kind });
+      return;
+    }
+    const tier = isPro ? "pro" : "free";
+    if (kind === "pdf") { printPdf(); trackDownload("pdf", tier); }
+    if (kind === "docx") { downloadDocx(resume); trackDownload("docx", tier); toast("DOCX downloaded — opens in Word or Google Docs.", "ok"); }
+    if (kind === "txt") { downloadTxt(resume); trackDownload("txt", tier); toast("Plain text downloaded — paste it into any portal.", "ok"); }
+    if (!isPro && res.remaining === 0) toast("That was your free export — go Pro for unlimited downloads.", "warn");
   };
 
   const cloudSave = async () => {
@@ -150,6 +162,15 @@ export default function Builder() {
             {savedAt ? `autosaved ${new Date(savedAt).toLocaleTimeString()}` : "autosave on"} · stored in your browser
           </span>
           <div className="ml-auto flex items-center gap-2.5">
+            {user && isPro && (
+              <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> Pro · unlimited</span>
+            )}
+            {user && !isPro && freeExportsLeft > 0 && (
+              <span className="hidden items-center gap-1.5 border border-pine/50 bg-acid-soft px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-pine-deep lg:flex"><Icon name="star" size={13} /> {freeExportsLeft} free export left</span>
+            )}
+            {!user && (
+              <Link to="/auth?next=/builder" className="hidden items-center gap-1.5 border border-dashed border-ink/40 px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink lg:flex"><Icon name="user" size={13} /> Sign in → 1 free export</Link>
+            )}
             <button onClick={() => void cloudSave()} disabled={saving} className="hidden items-center gap-2 border border-ink/30 px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex">
               <Icon name="cloud" size={15} /> {saving ? "Saving…" : "Cloud save"}
             </button>
@@ -159,9 +180,16 @@ export default function Builder() {
               </button>
               {exportOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-60 border-2 border-ink bg-card hs-sm">
-                  {([["pdf", "PDF — ATS-safe print", "doc"], ["docx", "DOCX — editable in Word", "edit"], ["txt", "Plain text — portal paste", "copy"], ["share", "Shareable link", "link"]] as const).map(([k, l, ic]) => (
+                  {([["pdf", "PDF — ATS-safe print", "doc"], ["docx", "DOCX — editable in Word", "edit"], ["txt", "Plain text — portal paste", "copy"], ["share", "Shareable link — always free", "link"]] as const).map(([k, l, ic]) => (
                     <button key={k} onClick={() => onExport(k)} className="flex w-full items-center gap-3 border-b border-ink/10 px-4 py-3 text-left text-sm font-semibold transition-colors last:border-0 hover:bg-acid-soft">
-                      <Icon name={ic} size={16} className="text-pine" /> {l}
+                      <Icon name={ic} size={16} className="text-pine" /> <span className="flex-1">{l}</span>
+                      {k !== "share" && (
+                        !user
+                          ? <span className="border border-dashed border-ink/40 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-ink-soft">sign in</span>
+                          : isPro
+                            ? <span className="bg-ink px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-acid">pro</span>
+                            : <span className="border border-pine/50 bg-acid-soft px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-pine-deep">{freeExportsLeft} left</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -376,6 +404,55 @@ export default function Builder() {
                     ))}
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* subscription gate */}
+      {gate && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-4" onClick={() => setGate(null)}>
+          <div className="toast-in w-full max-w-md border-2 border-ink bg-paper hs-acid" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b-2 border-ink bg-ink px-5 py-3.5">
+              <p className="font-display text-lg font-black text-paper">{gate === "signin" ? "One free export — on us" : "That was your free export"}</p>
+              <button onClick={() => setGate(null)} className="grid h-8 w-8 place-items-center border border-paper/40 text-paper transition-colors hover:border-acid hover:text-acid"><Icon name="x" size={14} /></button>
+            </div>
+            <div className="p-6">
+              {gate === "signin" ? (
+                <>
+                  <p className="text-sm leading-relaxed text-ink-soft">
+                    Create a free account and your first <strong className="text-ink">PDF, DOCX or TXT export is free</strong> — no card required.
+                    Your draft is already autosaved in this browser and will be waiting for you.
+                  </p>
+                  <ul className="mt-4 space-y-2 border-t border-ink/10 pt-4">
+                    {["1 export free with every account", "ATS score and 14-check report", "All 4 templates, 20 role examples"].map((b) => (
+                      <li key={b} className="flex items-center gap-2.5 text-sm font-semibold"><Icon name="check" size={15} className="text-pine" /> {b}</li>
+                    ))}
+                  </ul>
+                  <Link to="/auth?next=/builder" className="hs-sm mt-5 flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5">
+                    Create free account <Icon name="arrow" size={15} />
+                  </Link>
+                  <p className="mt-3 text-center font-mono text-[10.5px] text-ink-soft">
+                    Already have one? <Link to="/auth?next=/builder" className="font-bold text-pine underline underline-offset-2">Sign in</Link>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm leading-relaxed text-ink-soft">
+                    Every free account includes <strong className="text-ink">1 export</strong> — and you just used it.
+                    Pro removes the limit entirely: unlimited PDF, DOCX and TXT, every time you tweak a bullet.
+                  </p>
+                  <ul className="mt-4 space-y-2 border-t border-ink/10 pt-4">
+                    {["Unlimited exports in every format", "Unlimited job-description tailoring", "Unlimited cover letters + LinkedIn About", "Cloud sync across devices"].map((b) => (
+                      <li key={b} className="flex items-center gap-2.5 text-sm font-semibold"><Icon name="zap" size={15} className="text-coral" /> {b}</li>
+                    ))}
+                  </ul>
+                  <Link to="/pricing" className="hs-sm mt-5 flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5">
+                    See Pro — from $7/mo <Icon name="arrow" size={15} />
+                  </Link>
+                  <p className="mt-3 text-center font-mono text-[10.5px] text-ink-soft">Share links stay free — export one to keep applying while you decide.</p>
+                </>
               )}
             </div>
           </div>

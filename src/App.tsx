@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import { AppProviders } from "./store/AppStore";
 import Home from "./pages/Home";
@@ -18,10 +18,16 @@ function RouteEffects() {
   return null;
 }
 
+// Clean SEO URLs on Vercel + local dev; hash routing keeps the app working
+// inside static preview sandboxes that serve index.html from a nested path.
+const host = typeof window !== "undefined" ? window.location.hostname : "";
+const useCleanUrls = host === "localhost" || host === "127.0.0.1" || host.endsWith("vercel.app");
+const Router = useCleanUrls ? BrowserRouter : HashRouter;
+
 export default function App() {
   return (
     <AppProviders>
-      <BrowserRouter>
+      <Router>
         <RouteEffects />
         <Layout>
           <Routes>
@@ -41,7 +47,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Layout>
-      </BrowserRouter>
+      </Router>
     </AppProviders>
   );
 }

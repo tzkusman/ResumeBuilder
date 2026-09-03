@@ -25,7 +25,8 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: icon.png
+  # The release workflow converts icon.png → icon.ico (NSIS only accepts .ico).
+  icon: icon.ico
   artifactName: ResumeBuild-Setup-${version}-windows.${ext}
 
 nsis:

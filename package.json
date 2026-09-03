@@ -1,6 +1,15 @@
 {
   "name": "resumebuild",
   "private": true,
+  "version": "1.0.0",
+  "description": "ResumeBuild — ATS-proof resume builder with profession examples, country CV guides and subscription plans",
+  "author": "tzkusman",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

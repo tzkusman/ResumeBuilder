@@ -1,88 +1,107 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 /**
- * ResumeBuild — Electron wrapper (desktop app for Windows / macOS / Linux).
+ * ResumeBuild — Electron shell.
  *
- * The desktop build loads the same production bundle that Vercel serves:
- *   1. npm run build            → produces ./dist
- *   2. npx electron .           → launches this file against ./dist
- *   3. npm run dist (see ELECTRON.md) → electron-builder installers
- *
- * Installers are published to GitHub Releases by .github/workflows/release.yml
- * whenever you push a tag: git tag v1.2.0 && git push origin v1.2.0
+ * The desktop app is a native window around the production web app
+ * (https://resume-builder-pd3c.vercel.app/). That means:
+ *   • login / signup / subscriptions / exports work exactly like the website
+ *   • deploying a new version on Vercel instantly updates every installed app
+ *   • the installer stays tiny and never goes stale
+ * An internet connection is required; offline users get a branded retry screen.
  */
-const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, ipcMain } = require("electron");
 const path = require("path");
-const fs = require("fs");
 
-const DIST = path.join(__dirname, "..", "dist");
-let mainWindow = null;
+const PROD_URL = "https://resume-builder-pd3c.vercel.app/";
+const ICON = path.join(__dirname, "..", "icon.png");
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1360,
-    height: 860,
-    minWidth: 1024,
-    minHeight: 700,
-    title: "ResumeBuild — ATS-Proof Resume Builder",
-    backgroundColor: "#f2f3ec",
-    autoHideMenuBar: true,
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+// One window per machine — a second launch focuses the existing window.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.setName("ResumeBuild");
+  let mainWindow = null;
 
-  const entry = path.join(DIST, "index.html");
+  function createWindow() {
+    mainWindow = new BrowserWindow({
+      width: 1360,
+      height: 860,
+      minWidth: 1024,
+      minHeight: 700,
+      title: "ResumeBuild — ATS-Proof Resume Builder",
+      icon: ICON,
+      backgroundColor: "#131f1a",
+      autoHideMenuBar: true,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, "preload.cjs"),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
 
-  // Show a clear error instead of a blank window if the bundle is missing.
-  if (!fs.existsSync(entry)) {
-    mainWindow.loadURL(
-      "data:text/html;charset=utf-8," +
-        encodeURIComponent(
-          "<h1 style='font-family:sans-serif;padding:2rem'>ResumeBuild</h1>" +
-            "<p style='font-family:sans-serif;padding:0 2rem'>The web bundle was not found at " +
-            entry.replace(/\\/g, "/") +
-            ". Rebuild with <code>npm run build -- --base=./</code> before packaging.</p>"
-        )
-    );
-  } else {
-    mainWindow.loadFile(entry);
+    mainWindow.once("ready-to-show", () => mainWindow.show());
+
+    // Tag desktop traffic so GA4 can separate app users from web users.
+    try {
+      mainWindow.webContents.setUserAgent(mainWindow.webContents.userAgent + " ResumeBuildDesktop/1.1");
+    } catch { /* cosmetic only */ }
+
+    loadApp();
+
+    // Keep in-app SPA navigation inside the window; send real external
+    // links (LinkedIn, payment providers, docs) to the system browser.
+    mainWindow.webContents.on("will-navigate", (event, url) => {
+      if (!url.startsWith(PROD_URL)) {
+        event.preventDefault();
+        if (url.startsWith("http")) shell.openExternal(url);
+      }
+    });
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith("http")) shell.openExternal(url);
+      return { action: "deny" };
+    });
+
+    // Network failure → branded offline screen (error code -3 = navigation
+    // aborted by a new load, which is normal and must be ignored).
+    mainWindow.webContents.on("did-fail-load", (_e, code) => {
+      if (code !== -3) showOffline();
+    });
   }
 
-  // Surface load failures instead of leaving a silent blank screen.
-  mainWindow.webContents.on("did-fail-load", (_e, code, desc) => {
-    console.error(`[resumebuild] load failed (${code}): ${desc}`);
+  function loadApp() {
+    mainWindow
+      .loadFile(path.join(__dirname, "splash.html"))
+      .then(() => new Promise((r) => setTimeout(r, 700))) // let the splash breathe
+      .then(() => mainWindow.loadURL(PROD_URL))
+      .catch(() => showOffline());
+  }
+
+  function showOffline() {
+    mainWindow.loadFile(path.join(__dirname, "offline.html")).catch(() => {});
+  }
+
+  // Retry from the offline screen's button, or automatically on reconnect.
+  ipcMain.on("rb:reload", () => {
+    if (mainWindow) loadApp();
   });
 
-  // Open external links (payment, docs) in the system browser, not the app.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http")) shell.openExternal(url);
-    return { action: "deny" };
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
   });
 }
-
-// Save-as dialog used by the desktop "Export PDF/DOCX" affordances.
-ipcMain.handle("rb:save-file", async (_e, { defaultName, content }) => {
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: defaultName,
-    filters: [
-      { name: "Documents", extensions: ["doc", "txt", "html"] },
-      { name: "All files", extensions: ["*"] },
-    ],
-  });
-  if (canceled || !filePath) return null;
-  fs.writeFileSync(filePath, content, "utf8");
-  return filePath;
-});
-
-app.whenReady().then(() => {
-  createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});

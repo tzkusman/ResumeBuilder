@@ -1,0 +1,50 @@
+name: Release desktop app
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout (Resumebuild repo)
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Install Electron toolchain
+        run: npm i -D electron electron-builder
+
+      - name: Package & publish installers to GitHub Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          npx electron-builder
+          --publish always
+          --config.extraMetadata.main=electron/main.cjs
+          --config.appId=app.resumebuild.desktop
+          --config.productName=ResumeBuild
+          --config.files="dist/**/*,electron/**/*"
+          --config.directories.output=release
+          --config.win.target=nsis
+          --config.mac.target=dmg
+          --config.linux.target=AppImage

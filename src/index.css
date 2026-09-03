@@ -1,1 +1,110 @@
 @import "tailwindcss";
+
+@theme {
+  --color-paper: #f2f3ec;
+  --color-card: #fbfcf7;
+  --color-ink: #131f1a;
+  --color-ink-soft: #4c5b52;
+  --color-line: #d7dcc9;
+  --color-pine: #17594a;
+  --color-pine-deep: #0c3b31;
+  --color-acid: #d9f24f;
+  --color-acid-soft: #edf8a4;
+  --color-coral: #ff5a36;
+  --color-cobalt: #1f4e9c;
+  --color-oxblood: #7c2f3e;
+
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--color-acid); color: var(--color-ink); }
+
+:focus-visible { outline: 2px solid var(--color-pine); outline-offset: 2px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-paper); }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-pine); }
+
+/* ---------- reusable craft classes ---------- */
+.dotgrid {
+  background-image: radial-gradient(var(--color-line) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+}
+.dotgrid-dark {
+  background-image: radial-gradient(rgba(217, 242, 79, 0.14) 1.1px, transparent 1.1px);
+  background-size: 26px 26px;
+}
+.hs { box-shadow: 5px 5px 0 0 var(--color-ink); }
+.hs-sm { box-shadow: 3px 3px 0 0 var(--color-ink); }
+.hs-acid { box-shadow: 5px 5px 0 0 var(--color-acid); }
+.hs-pine { box-shadow: 5px 5px 0 0 var(--color-pine); }
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.rv { opacity: 0; transform: translateY(22px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+.rv.in { opacity: 1; transform: none; }
+
+/* ---------- motion ---------- */
+@keyframes marquee { to { transform: translateX(-50%); } }
+.marquee-track { width: max-content; animation: marquee 46s linear infinite; }
+.marquee-track:hover { animation-play-state: paused; }
+
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.floaty { animation: floaty 5s ease-in-out infinite; }
+.floaty-slow { animation: floaty 7.5s ease-in-out infinite; }
+
+@keyframes blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.caret { animation: blink 1s step-end infinite; }
+
+@keyframes pulse-dot { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.7); opacity: 0.45; } }
+.pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-3px); } 40%, 60% { transform: translateX(3px); } }
+.shake { animation: shake 0.5s ease both; }
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+.toast-in { animation: toast-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.9s linear infinite; }
+
+.gauge-arc { transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ---------- resume document ---------- */
+.resume-sheet {
+  width: 794px;
+  min-height: 1123px;
+  background: #fff;
+  color: #181d1a;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- print (PDF export) ---------- */
+#print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 0; }
+  body.printing #root { display: none !important; }
+  body.printing #print-root { display: block !important; }
+  body.printing { background: #fff; }
+  .resume-sheet { box-shadow: none !important; width: 210mm; min-height: 296mm; }
+}

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://resumebuild.vercel.app/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://resumebuild.vercel.app/builder</loc><priority>0.9</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries</loc><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/templates</loc><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/cover-letter</loc><priority>0.6</priority></url>
+  <url><loc>https://resumebuild.vercel.app/pricing</loc><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/privacy</loc><priority>0.3</priority></url>
+  <url><loc>https://resumebuild.vercel.app/terms</loc><priority>0.3</priority></url>
+  <!-- 20 profession example pages -->
+  <url><loc>https://resumebuild.vercel.app/examples/teacher</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/registered-nurse</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/software-engineer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/accountant</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/sales-manager</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/marketing-manager</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/data-analyst</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/customer-service</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/project-manager</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/graphic-designer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/electrician</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/pharmacist</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/financial-analyst</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/hr-specialist</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/mechanical-engineer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/web-developer</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/administrative-assistant</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/social-worker</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/chef</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://resumebuild.vercel.app/examples/truck-driver</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <!-- 16 country CV guide pages -->
+  <url><loc>https://resumebuild.vercel.app/countries/us</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/gb</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/ca</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/au</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/de</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/fr</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/nl</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/es</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/ae</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/sa</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/pk</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/in</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/sg</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/jp</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/za</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://resumebuild.vercel.app/countries/br</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+</urlset>

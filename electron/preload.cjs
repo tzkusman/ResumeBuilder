@@ -1,11 +1,10 @@
 /**
- * Preload bridge — exposes a minimal, typed API to the renderer
- * with contextIsolation enabled (no Node access in the page).
+ * Preload bridge — minimal typed API, contextIsolation on.
  */
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("resumebuild", {
-  platform: process.platform,
   isDesktop: true,
-  saveFile: (defaultName, content) => ipcRenderer.invoke("rb:save-file", { defaultName, content }),
+  platform: process.platform,
+  reload: () => ipcRenderer.send("rb:reload"),
 });

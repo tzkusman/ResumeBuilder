@@ -73,19 +73,15 @@ session in the `pay()` handler (or use Stripe Payment Links), set your keys as
 
 ## 5. Desktop app (Electron → GitHub Releases)
 
-`electron/main.cjs` + `electron/preload.cjs` wrap the same `dist` bundle Vercel
-serves, with a context-isolated preload and a native Save-As dialog.
+`electron/main.cjs` opens a native window on the production site
+(`https://resume-builder-pd3c.vercel.app/`) — login, subscriptions and exports
+work exactly like the web app, and every Vercel deploy instantly updates every
+installed app. Includes a branded splash, an offline/reconnect screen, a
+single-instance lock, and external links opening in the system browser.
 
-Because this sandbox doesn't modify `package.json`, add these once locally:
-
-```jsonc
-// package.json
-"main": "electron/main.cjs",
-"scripts": {
-  "electron": "npm run build && npx electron .",
-  "dist": "npm run build && npx electron-builder"
-}
-```
+The app icon lives at `icon.png` (repo root, 256×256 or larger; the master
+artwork is `public/icon.svg`). electron-builder converts it to `.ico`/`.icns`
+for the installer, taskbar and window chrome.
 
 Packaging config lives in `electron-builder.yml` (publishes to the GitHub
 Releases of `tzkusman/Resumebuild`).

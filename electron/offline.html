@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>ResumeBuild — Offline</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #131f1a; font-family: Georgia, "Times New Roman", serif; color: #f2f3ec; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 40px; }
+  .logo { width: 96px; height: 96px; opacity: .9; }
+  h1 { margin: 0; font-size: 30px; }
+  p { margin: 0; max-width: 420px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #9fb3a8; }
+  button { font-family: Georgia, serif; font-weight: bold; font-size: 16px; color: #131f1a; background: #d9f24f;
+           border: 2px solid #d9f24f; padding: 12px 34px; cursor: pointer; box-shadow: 4px 4px 0 #ff5a36;
+           transition: transform .15s ease, box-shadow .15s ease; }
+  button:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #ff5a36; }
+  button:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0 #ff5a36; }
+  .note { font-family: "Courier New", monospace; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: #5f7469; }
+</style>
+</head>
+<body>
+  <svg class="logo" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="112" fill="#233630"/>
+    <path d="M148 96h148l68 72v248a16 16 0 0 1-16 16H148a16 16 0 0 1-16-16V112a16 16 0 0 1 16-16Z" fill="#d9f24f"/>
+    <path d="M296 96l68 72h-52a16 16 0 0 1-16-16V96Z" fill="#a8c22e"/>
+    <rect x="168" y="204" width="176" height="22" rx="6" fill="#131f1a"/>
+    <rect x="168" y="252" width="176" height="22" rx="6" fill="#131f1a"/>
+    <rect x="168" y="300" width="112" height="22" rx="6" fill="#131f1a"/>
+    <circle cx="352" cy="372" r="60" fill="#ff5a36" stroke="#131f1a" stroke-width="10"/>
+    <path d="M326 372l18 18 36-38" fill="none" stroke="#131f1a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h1>You're offline</h1>
+  <p>ResumeBuild desktop streams the live app from <strong style="color:#f2f3ec">resume-builder-pd3c.vercel.app</strong>, so it needs an internet connection. Check your network, then try again — it will also retry automatically when you reconnect.</p>
+  <button onclick="window.resumebuild.reload()">Reconnect</button>
+  <p class="note">Waiting for network…</p>
+  <script>
+    window.addEventListener("online", function () {
+      if (window.resumebuild && window.resumebuild.reload) window.resumebuild.reload();
+    });
+  </script>
+</body>
+</html>

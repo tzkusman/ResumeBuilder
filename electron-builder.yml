@@ -1,6 +1,9 @@
 # ResumeBuild — desktop packaging config (electron-builder)
-# Triggered automatically by .github/workflows/release.yml on version tags.
-# `extraMetadata.main` points Electron at our wrapper without touching package.json.
+# Triggered automatically by .github/workflows/release.yml on version tags
+# or via Actions → "Release desktop app" → Run workflow.
+#
+# The app streams the production site, so only the Electron shell ships:
+# electron/, icon.png and package.json. No web bundle, no node_modules.
 
 appId: app.resumebuild.desktop
 productName: ResumeBuild
@@ -12,11 +15,9 @@ directories:
 extraMetadata:
   main: electron/main.cjs
 
-# Explicit file list = only the built web app + Electron wrapper are packaged.
-# (Prevents the full node_modules tree from being bundled into installers.)
 files:
-  - dist/**/*
   - electron/**/*
+  - icon.png
   - package.json
 
 win:
@@ -24,6 +25,7 @@ win:
     - target: nsis
       arch:
         - x64
+  icon: icon.png
   artifactName: ResumeBuild-Setup-${version}-windows.${ext}
 
 nsis:
@@ -31,17 +33,20 @@ nsis:
   allowToChangeInstallationDirectory: true
   shortcutName: ResumeBuild
   createDesktopShortcut: always
+  installerIcon: icon.png
+  uninstallerIcon: icon.png
 
 mac:
   target: dmg
+  icon: icon.png
   artifactName: ResumeBuild-${version}-macos.${ext}
 
 linux:
   target: AppImage
+  icon: icon.png
   artifactName: ResumeBuild-${version}-linux.${ext}
   category: Office
 
-# No owner/repo here on purpose: electron-builder auto-detects the repository
-# from the git remote, so this keeps working even if the repo is renamed.
+# Auto-detected from the git remote, so repo renames never break releases.
 publish:
   provider: github

@@ -80,11 +80,12 @@ jobs:
             fi
           fi
           if [ -f icon.ico ]; then
-            sed -i 's|^  icon: .*|  icon: icon.ico|' electron-builder.yml
+            sed -i 's|^[[:space:]]*icon:.*|  icon: icon.ico|' electron-builder.yml
             grep -q 'icon: icon.ico' electron-builder.yml || sed -i '/^win:/a\  icon: icon.ico' electron-builder.yml
+            echo "Config now uses:"; grep -n 'icon:' electron-builder.yml || true
           else
             echo "::warning::Could not produce icon.ico — build continues with the default icon."
-            sed -i '/icon:/d' electron-builder.yml
+            sed -i '/^[[:space:]]*icon:/d' electron-builder.yml
           fi
 
       - name: Create version tag (manual runs only)

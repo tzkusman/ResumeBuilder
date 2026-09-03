@@ -1,12 +1,22 @@
-name: Release desktop app
-
-# Builds the ResumeBuild desktop app and publishes installers to GitHub Releases:
-#   • ResumeBuild-Setup-x.y.z-windows.exe  (NSIS installer — Windows)
-#   • ResumeBuild-x.y.z-macos.dmg          (macOS)
-#   • ResumeBuild-x.y.z-linux.AppImage     (Linux)
+# ================================================================
+#  ⬇ COPY THIS ENTIRE FILE ⬇
 #
-# Trigger it without git:  Actions tab → "Release desktop app" → Run workflow.
-# Or with git:             git tag v1.0.0 && git push origin v1.0.0
+#  HOW TO USE (takes 2 minutes, no git needed):
+#
+#  1. Open your repo:  github.com/tzkusman/ResumeBuilder
+#  2. Click "Add file" → "Create new file"
+#  3. In the "Name your file…" box, type exactly:
+#         .github/workflows/release.yml
+#     (GitHub creates the .github and workflows folders for you)
+#  4. Select ALL of this file (Ctrl+A) → Copy (Ctrl+C)
+#  5. Paste into the GitHub editor (Ctrl+V)
+#  6. Scroll down → green "Commit changes" button
+#  7. Open the Actions tab → "Release desktop app" → Run workflow
+#     → type 1.0.0 → green "Run workflow" button
+#  8. ~6 minutes later your Releases page has the Windows .exe.
+# ================================================================
+
+name: Release desktop app
 
 on:
   workflow_dispatch:
@@ -81,6 +91,5 @@ jobs:
         working-directory: ${{ steps.root.outputs.dir }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Build macOS unsigned so the job passes without an Apple certificate.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npx electron-builder --publish always

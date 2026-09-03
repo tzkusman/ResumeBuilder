@@ -41,7 +41,7 @@ linux:
   artifactName: ResumeBuild-${version}-linux.${ext}
   category: Office
 
+# No owner/repo here on purpose: electron-builder auto-detects the repository
+# from the git remote, so this keeps working even if the repo is renamed.
 publish:
   provider: github
-  owner: tzkusman
-  repo: Resumebuild

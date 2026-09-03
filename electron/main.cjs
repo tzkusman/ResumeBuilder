@@ -33,7 +33,27 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(DIST, "index.html"));
+  const entry = path.join(DIST, "index.html");
+
+  // Show a clear error instead of a blank window if the bundle is missing.
+  if (!fs.existsSync(entry)) {
+    mainWindow.loadURL(
+      "data:text/html;charset=utf-8," +
+        encodeURIComponent(
+          "<h1 style='font-family:sans-serif;padding:2rem'>ResumeBuild</h1>" +
+            "<p style='font-family:sans-serif;padding:0 2rem'>The web bundle was not found at " +
+            entry.replace(/\\/g, "/") +
+            ". Rebuild with <code>npm run build -- --base=./</code> before packaging.</p>"
+        )
+    );
+  } else {
+    mainWindow.loadFile(entry);
+  }
+
+  // Surface load failures instead of leaving a silent blank screen.
+  mainWindow.webContents.on("did-fail-load", (_e, code, desc) => {
+    console.error(`[resumebuild] load failed (${code}): ${desc}`);
+  });
 
   // Open external links (payment, docs) in the system browser, not the app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

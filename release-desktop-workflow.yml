@@ -68,10 +68,13 @@ jobs:
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
-      - name: Build web bundle
+      - name: Build web bundle (relative asset paths for Electron)
         shell: bash
         working-directory: ${{ steps.root.outputs.dir }}
-        run: npm run build
+        # --base=./ makes Vite emit relative asset URLs (./assets/...) so the
+        # app loads correctly from file:// inside the packaged desktop app.
+        # The Vercel web build is unaffected and still uses absolute paths.
+        run: npm run build -- --base=./
 
       - name: Install Electron toolchain
         shell: bash

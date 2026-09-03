@@ -61,7 +61,10 @@ jobs:
       - name: Build web bundle
         shell: bash
         working-directory: ${{ steps.root.outputs.dir }}
-        run: npm run build
+        # --base=./ emits RELATIVE asset paths so the bundle loads from file://
+        # inside the packaged app (absolute "/assets/..." paths only work on a
+        # web server and cause a blank window in Electron).
+        run: npm run build -- --base=./
 
       - name: Install Electron toolchain
         shell: bash

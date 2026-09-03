@@ -1,11 +1,10 @@
 {
-  "name": "sandbox-workspace",
+  "name": "resumebuild",
   "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit"
+  "version": "1.0.0",
+  "description": "ResumeBuild — ATS-proof resume builder with profession examples, country CV guides and subscription plans",
+  "author": "tzkusman",
+  "main": "electron/main.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

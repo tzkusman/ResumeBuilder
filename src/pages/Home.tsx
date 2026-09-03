@@ -313,7 +313,7 @@ function HowItWorks() {
 function Faq() {
   const [open, setOpen] = useState(0);
   const faqs = [
-    ["Is ResumeBuild really free?", "Yes. Building, ATS scoring, and PDF/DOCX/TXT export are free forever. Pro adds unlimited AI tailoring passes, cloud sync, and priority templates for a small monthly fee."],
+    ["Is ResumeBuild really free?", "Yes. Building, ATS scoring and share links are free forever — and every account gets 1 free PDF/DOCX/TXT export the moment you sign up, no card needed. Pro ($7/mo, $49/yr or $79 lifetime) makes exports, tailoring and cover letters unlimited."],
     ["Will my resume pass ATS software?", "Every draft is checked against the 14 formatting and content rules used by Workday, Taleo, Greenhouse and Lever. The average ResumeBuild draft scores 88+ before export."],
     ["Do you support Pakistani and Indian job markets?", "Yes — dedicated country guides cover the local two-format reality (traditional CV vs. US-style resume), Naukri optimization, notice-period norms, and WhatsApp contact conventions. The interface also toggles between English and اردو."],
     ["What formats can I download?", "ATS-safe PDF (print-perfect A4), DOCX for editing in Word, plain text for portal pasting, and a shareable link that renders your resume online."],
@@ -366,7 +366,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-4 py-14 sm:px-6 lg:flex-row lg:items-center">
           <div>
             <h2 className="font-display text-3xl font-black sm:text-5xl">Your next callback is one draft away.</h2>
-            <p className="mt-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-pine-deep">Free forever plan · no card required · {PROFESSION_CATEGORIES.length} industries covered</p>
+            <p className="mt-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-pine-deep">1 free export with every account · no card required · {PROFESSION_CATEGORIES.length} industries covered</p>
           </div>
           <Link to="/builder" onClick={() => track("cta_click", { label: "home_bottom_band" })} className="hs group inline-flex shrink-0 items-center gap-3 border-2 border-ink bg-ink px-7 py-4 text-lg font-bold text-acid transition-all hover:-translate-y-0.5">
             Open the builder <Icon name="arrow" size={20} className="transition-transform group-hover:translate-x-1" />

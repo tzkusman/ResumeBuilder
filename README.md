@@ -97,7 +97,24 @@ then publishes all three to the repo's **GitHub Releases** page automatically
 (~6 min, no signing certificates required). Test locally first with
 `npx electron .` after `npm i -D electron electron-builder`.
 
-## 6. Growing the SEO engine (the ongoing job)
+## 6. Payments & subscription model
+
+Monetization is wired end-to-end with a demo checkout (no real charges yet):
+
+- **Free** — every account unlocks **1 free export** on signup (`free_download_unlocked`
+  GA4 event). Guests are prompted to sign up from the builder's export gate.
+- **Pro** — $7/mo or $49/yr, unlimited PDF/DOCX/TXT exports, unlimited JD tailoring
+  and cover letters, cloud sync. **Lifetime** — $79 once.
+- Plan state lives in `AppStore` (`src/store/AppStore.tsx` → `PLANS`, `consumeDownload`)
+  and mirrors to `profiles.pro / pro_plan / downloads_used` when Supabase is configured.
+- Conversion events: `checkout_start`, `purchase`, `plan_change`, `upgrade_view`.
+
+**To accept real money:** create Stripe Price IDs for the three plans, then swap the
+`pay()` handler in `src/pages/Misc.tsx` (PricingPage) for a redirect to Stripe Checkout,
+and add a webhook Edge Function that upserts `public.subscriptions` (schema in
+`supabase/schema.sql`) + flips `profiles.pro`. Gate the same way `consumeDownload` does.
+
+## 7. Growing the SEO engine (the ongoing job)
 
 The long-tail playbook lives in `src/data/professions.ts`. To publish a new
 "[Job Title] Resume Example" page:

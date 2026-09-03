@@ -31,15 +31,35 @@ interface I18nCtx { lang: Lang; setLang: (l: Lang) => void; t: (k: string) => st
 const I18nContext = createContext<I18nCtx>({ lang: "en", setLang: () => {}, t: (k) => DICT[k]?.en ?? k });
 export const useI18n = () => useContext(I18nContext);
 
-/* ---------------- Auth ---------------- */
+/* ---------------- Auth + subscription ---------------- */
 interface User { email: string }
+
+/** Every account starts with this many free exports — the signup hook. */
+export const FREE_EXPORTS = 1;
+
+/** Plan catalog shared by the pricing page, builder gate and checkout. */
+export const PLANS = {
+  free: { name: "Free", price: 0, cadence: "forever" },
+  pro_monthly: { name: "Pro Monthly", price: 7, cadence: "/mo" },
+  pro_annual: { name: "Pro Annual", price: 49, cadence: "/yr" },
+  pro_lifetime: { name: "Pro Lifetime", price: 79, cadence: "once" },
+} as const;
+export type PlanId = keyof typeof PLANS;
+
+interface PlanState { planId: PlanId; since: number | null; downloadsUsed: number }
 interface AuthCtx {
   user: User | null;
   isPro: boolean;
+  planName: string;
+  planSince: number | null;
+  downloadsUsed: number;
+  freeExportsLeft: number;
+  consumeDownload: () => { allowed: boolean; remaining: number; reason: "guest" | "limit" | "ok" };
   signup: (email: string, password: string) => Promise<string | null>;
   login: (email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
-  unlockPro: (plan: string) => void;
+  unlockPro: (planId: PlanId) => void;
+  cancelPro: () => void;
 }
 const AuthContext = createContext<AuthCtx>(null as unknown as AuthCtx);
 export const useAuth = () => useContext(AuthContext);
@@ -58,7 +78,7 @@ export const useResume = () => useContext(ResumeContext);
 
 const LS_RESUME = "rb_resume_v1";
 const LS_USER = "rb_user_v1";
-const LS_PRO = "rb_pro_v1";
+const LS_PLAN = "rb_plan_v2";
 const LS_LANG = "rb_lang_v1";
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -85,7 +105,35 @@ export function AppProviders({ children }: { children: ReactNode }) {
       return JSON.parse(localStorage.getItem(LS_USER) || "null") as User | null;
     } catch { return null; }
   });
-  const [isPro, setIsPro] = useState<boolean>(() => localStorage.getItem(LS_PRO) === "1");
+  /* subscription state — persisted locally; mirrored to Supabase profiles when configured */
+  const [planState, setPlanState] = useState<PlanState>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS_PLAN) || "null") as PlanState | null;
+      if (raw && raw.planId && PLANS[raw.planId]) {
+        return { planId: raw.planId, since: raw.since ?? null, downloadsUsed: Math.max(0, raw.downloadsUsed ?? 0) };
+      }
+    } catch { /* fall through */ }
+    return { planId: "free", since: null, downloadsUsed: 0 };
+  });
+  const isPro = planState.planId !== "free";
+
+  const persistPlan = useCallback((next: PlanState) => {
+    setPlanState(next);
+    localStorage.setItem(LS_PLAN, JSON.stringify(next));
+    const sb = supabase;
+    if (isSupabaseConfigured && sb) {
+      void sb.auth.getUser().then(({ data }) => {
+        if (data.user) {
+          void sb.from("profiles").update({
+            pro: next.planId !== "free",
+            pro_plan: next.planId,
+            pro_since: next.since ? new Date(next.since).toISOString() : null,
+            downloads_used: next.downloadsUsed,
+          }).eq("id", data.user.id);
+        }
+      });
+    }
+  }, []);
 
   useEffect(() => {
     // Adopt an existing Supabase session on boot.
@@ -112,7 +160,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       localStorage.setItem(LS_USER, JSON.stringify({ email }));
       setUser({ email });
     }
-    track("sign_up", { method: isSupabaseConfigured ? "supabase" : "demo" });
+    const method = isSupabaseConfigured ? "supabase" : "demo";
+    track("sign_up", { method });
+    track("free_download_unlocked", { method });
     return null;
   }, []);
 
@@ -134,11 +184,25 @@ export function AppProviders({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const unlockPro = useCallback((plan: string) => {
-    localStorage.setItem(LS_PRO, "1");
-    setIsPro(true);
-    track("purchase", { plan });
-  }, []);
+  const unlockPro = useCallback((planId: PlanId) => {
+    persistPlan({ planId, since: Date.now(), downloadsUsed: planState.downloadsUsed });
+    track("plan_change", { to: planId, price: PLANS[planId].price });
+  }, [persistPlan, planState.downloadsUsed]);
+
+  const cancelPro = useCallback(() => {
+    persistPlan({ planId: "free", since: planState.since, downloadsUsed: planState.downloadsUsed });
+    track("plan_change", { to: "free" });
+  }, [persistPlan, planState.since, planState.downloadsUsed]);
+
+  /** Gate an export: guests are blocked, free accounts get FREE_EXPORTS, Pro is unlimited. */
+  const consumeDownload = useCallback(() => {
+    if (!user) return { allowed: false, remaining: 0, reason: "guest" as const };
+    if (planState.planId !== "free") return { allowed: true, remaining: Infinity, reason: "ok" as const };
+    if (planState.downloadsUsed >= FREE_EXPORTS) return { allowed: false, remaining: 0, reason: "limit" as const };
+    const used = planState.downloadsUsed + 1;
+    persistPlan({ ...planState, downloadsUsed: used });
+    return { allowed: true, remaining: FREE_EXPORTS - used, reason: "ok" as const };
+  }, [user, planState, persistPlan]);
 
   /* resume */
   const [resume, setResumeState] = useState<ResumeData>(() => {
@@ -189,7 +253,19 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   const toastValue = useMemo(() => ({ toast }), [toast]);
   const i18nValue = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
-  const authValue = useMemo(() => ({ user, isPro, signup, login, logout, unlockPro }), [user, isPro, signup, login, logout, unlockPro]);
+  const freeExportsLeft = isPro ? Infinity : Math.max(0, FREE_EXPORTS - planState.downloadsUsed);
+  const authValue = useMemo(
+    () => ({
+      user, isPro,
+      planName: PLANS[planState.planId].name,
+      planSince: planState.since,
+      downloadsUsed: planState.downloadsUsed,
+      freeExportsLeft,
+      consumeDownload,
+      signup, login, logout, unlockPro, cancelPro,
+    }),
+    [user, isPro, planState, freeExportsLeft, consumeDownload, signup, login, logout, unlockPro, cancelPro]
+  );
   const resumeValue = useMemo(() => ({ resume, setResume, replaceResume, loadRole, savedAt, saveToCloud }), [resume, setResume, replaceResume, loadRole, savedAt, saveToCloud]);
 
   return (

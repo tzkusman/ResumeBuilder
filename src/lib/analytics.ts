@@ -25,7 +25,8 @@ declare global {
 
 export type ConversionEvent =
   | "sign_up" | "login" | "resume_download" | "purchase" | "generate_lead"
-  | "ats_score" | "template_select" | "share" | "cta_click" | "page_view";
+  | "ats_score" | "template_select" | "share" | "cta_click" | "page_view"
+  | "checkout_start" | "free_download_unlocked" | "upgrade_view" | "plan_change";
 
 export function track(event: ConversionEvent, params: Record<string, string | number | boolean> = {}) {
   const payload = { ...params, ts: Date.now() };
@@ -42,6 +43,6 @@ export function track(event: ConversionEvent, params: Record<string, string | nu
   if (import.meta.env.DEV) console.debug("[analytics]", event, payload);
 }
 
-export const trackDownload = (format: "pdf" | "docx" | "txt") => track("resume_download", { format });
+export const trackDownload = (format: "pdf" | "docx" | "txt", tier: "free" | "pro" = "free") => track("resume_download", { format, tier });
 export const trackPurchase = (plan: string, value: number) => track("purchase", { plan, value, currency: "USD" });
 export const trackPageView = (path: string) => track("page_view", { page_path: path });

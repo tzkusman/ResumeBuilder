@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon, Reveal, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
-import { useResume, useAuth, useToast } from "../store/AppStore";
+import { useResume, useAuth, useToast, PLANS, FREE_EXPORTS, type PlanId } from "../store/AppStore";
 import { ACCENTS, resumeFromProfession, type TemplateId } from "../lib/types";
 import { getProfession } from "../data/professions";
 import { decodeShare, downloadBlob, resumeToText } from "../lib/utils";
@@ -181,83 +181,182 @@ What I'm looking for: ${company ? `roles like ${role || "my next challenge"} at 
 
 /* ================= Pricing ================= */
 export function PricingPage() {
-  const { isPro, unlockPro, user } = useAuth();
+  const { user, isPro, planName, planSince, downloadsUsed, freeExportsLeft, unlockPro, cancelPro } = useAuth();
   const { toast } = useToast();
-  const [checkout, setCheckout] = useState<string | null>(null);
+  const [cycle, setCycle] = useState<"monthly" | "annual">("monthly");
+  const [checkout, setCheckout] = useState<PlanId | null>(null);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
 
+  const proPlan: PlanId = cycle === "monthly" ? "pro_monthly" : "pro_annual";
   const rows: [string, string, string][] = [
+    ["Exports (PDF / DOCX / TXT)", `${FREE_EXPORTS} total after sign-up`, "Unlimited"],
     ["ATS score + 14-check report", "Included", "Included"],
-    ["PDF / DOCX / TXT export", "Included", "Included"],
-    ["20 profession examples", "Included", "Included"],
+    ["All 4 ATS templates + accent inks", "Included", "Included"],
+    ["20 profession examples + prefill", "Included", "Included"],
     ["Country CV guides (16 markets)", "Included", "Included"],
     ["Shareable resume link", "Included", "Included"],
     ["JD keyword tailoring", "3 passes / day", "Unlimited"],
+    ["Cover letter + LinkedIn About", "1 / month", "Unlimited"],
     ["Cloud sync (Supabase workspace)", "—", "Included"],
-    ["Cover letter generator", "1 / month", "Unlimited"],
-    ["All 4 templates + future drops", "Merit & Atlas", "All + early access"],
+    ["Priority email support", "—", "Included"],
   ];
+
+  const startCheckout = (plan: PlanId) => {
+    setPaid(false);
+    setCheckout(plan);
+    track("checkout_start", { plan, value: PLANS[plan].price });
+  };
 
   const pay = (e: FormEvent) => {
     e.preventDefault();
+    if (!checkout) return;
     setPaying(true);
-    track("cta_click", { label: "checkout_start" });
-    // NOTE: replace with Stripe Checkout / Payment Links in production.
+    // NOTE: replace with Stripe Checkout / Payment Links in production (README §6).
     setTimeout(() => {
       setPaying(false);
       setPaid(true);
-      unlockPro(checkout ?? "pro_monthly");
-      trackPurchase(checkout ?? "pro_monthly", checkout === "pro_lifetime" ? 29 : 4);
+      unlockPro(checkout);
+      trackPurchase(PLANS[checkout].name, PLANS[checkout].price);
     }, 1400);
   };
 
+  const planCards: { plan: PlanId; badge?: string; features: string[]; cta: string; onCta: () => void; current?: boolean }[] = [
+    {
+      plan: "free",
+      features: [
+        `${FREE_EXPORTS} free export after sign-up`,
+        "ATS score + full 14-check report",
+        "All 4 templates + 20 role examples",
+        "Shareable link (always free)",
+        "3 JD keyword passes / day",
+      ],
+      cta: user ? (isPro ? "Included in Pro" : `${freeExportsLeft} export${freeExportsLeft === 1 ? "" : "s"} left`) : "Claim your free export",
+      onCta: () => {},
+      current: !!user && !isPro,
+    },
+    {
+      plan: proPlan,
+      badge: "Best value",
+      features: [
+        "Unlimited PDF / DOCX / TXT exports",
+        "Unlimited JD keyword tailoring",
+        "Unlimited cover letters + LinkedIn About",
+        "Cloud sync across devices",
+        "Priority email support",
+      ],
+      cta: isPro && planName === PLANS[proPlan].name ? "Current plan" : `Go Pro — $${PLANS[proPlan].price}${PLANS[proPlan].cadence}`,
+      onCta: () => startCheckout(proPlan),
+      current: isPro && planName === PLANS[proPlan].name,
+    },
+    {
+      plan: "pro_lifetime",
+      badge: "Pay once",
+      features: [
+        "Everything in Pro, forever",
+        "No monthly bill, ever",
+        "All future templates included",
+        "Price locked at today's rate",
+        "Lifetime priority support",
+      ],
+      cta: isPro && planName === PLANS.pro_lifetime.name ? "Current plan" : "Unlock lifetime — $79",
+      onCta: () => startCheckout("pro_lifetime"),
+      current: isPro && planName === PLANS.pro_lifetime.name,
+    },
+  ];
+
   return (
     <>
-      <Seo title="Pricing — Free Forever Plan & Pro at $4/mo | ResumeBuild" description="ResumeBuild is free forever: ATS scoring, exports and all examples included. Pro adds unlimited tailoring, cloud sync and every template for $4/month or $29 lifetime." path="/pricing" />
+      <Seo title="Pricing — 1 Free Export, Pro from $7/mo | ResumeBuild" description="Every account gets 1 free resume export. Pro unlocks unlimited PDF/DOCX/TXT downloads, unlimited JD tailoring and cloud sync for $7/mo, $49/yr or $79 lifetime." path="/pricing" />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
           <Reveal><Kicker className="text-pine">Pricing</Kicker></Reveal>
-          <Reveal delay={80}><h1 className="mt-4 font-display text-4xl font-black sm:text-6xl">Free does the job. <em className="text-pine">Pro does it faster.</em></h1></Reveal>
+          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] sm:text-6xl">Every account starts with <em className="text-pine">one free export.</em></h1></Reveal>
+          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">Sign up, download your resume, done — no card. Pro is for people applying seriously: unlimited exports, unlimited tailoring, synced everywhere.</p></Reveal>
         </div>
       </section>
-      <section className="mx-auto max-w-5xl px-4 py-14 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <Reveal>
-          <div className="grid grid-cols-[1fr_110px_110px] border-2 border-ink bg-card sm:grid-cols-[1fr_150px_170px]">
-            <div className="border-b-2 border-r-2 border-ink bg-paper px-5 py-5">
-              <p className="kicker text-ink-soft">Features</p>
-            </div>
-            <div className="border-b-2 border-r-2 border-ink bg-paper px-4 py-5 text-center">
-              <p className="font-display text-xl font-black">Free</p>
-              <p className="font-mono text-[11px] text-ink-soft">$0 forever</p>
-            </div>
-            <div className="relative border-b-2 border-ink bg-ink px-4 py-5 text-center text-paper">
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 border border-ink bg-acid px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-ink">Best value</span>
-              <p className="font-display text-xl font-black text-acid">Pro</p>
-              <p className="font-mono text-[11px] text-paper/70">$4/mo · or $29 lifetime</p>
-            </div>
-            {rows.map(([f, free, pro]) => (
-              <div key={f} className="col-span-3 grid grid-cols-subgrid border-b border-ink/10 sm:col-span-3" style={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "subgrid" }}>
-                <div className="border-r border-ink/10 px-5 py-3.5 text-sm font-semibold">{f}</div>
-                <div className="border-r border-ink/10 px-4 py-3.5 text-center text-sm text-ink-soft">{free === "Included" ? <Icon name="check" size={16} className="mx-auto text-pine" /> : free}</div>
-                <div className="bg-ink/5 px-4 py-3.5 text-center text-sm font-bold text-pine-deep">{pro === "Included" ? <Icon name="check" size={16} className="mx-auto text-pine" /> : pro}</div>
-              </div>
-            ))}
-            <div className="border-r-2 border-ink px-5 py-5" />
-            <div className="border-r-2 border-ink px-4 py-5" />
-            <div className="bg-ink px-4 py-5 text-center">
-              {isPro ? (
-                <span className="inline-flex items-center gap-2 border border-acid px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-widest text-acid"><Icon name="check" size={14} /> Pro active</span>
-              ) : (
-                <button onClick={() => { setCheckout("pro_monthly"); setPaid(false); }} className="border-2 border-acid bg-acid px-4 py-2.5 text-sm font-bold text-ink transition-all hover:-translate-y-0.5">Go Pro — $4/mo</button>
-              )}
+          <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-soft">Pro billing:</span>
+            <div className="flex border-2 border-ink">
+              <button onClick={() => setCycle("monthly")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "monthly" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Monthly</button>
+              <button onClick={() => setCycle("annual")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "annual" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Annual <span className="ml-1 bg-acid px-1.5 py-0.5 font-mono text-[9px] text-ink">−42%</span></button>
             </div>
           </div>
         </Reveal>
+        <div className="grid gap-5 lg:grid-cols-3">
+          {planCards.map((card, i) => {
+            const meta = PLANS[card.plan];
+            const featured = card.plan !== "free";
+            return (
+              <Reveal key={card.plan} delay={i * 100}>
+                <div className={`relative flex h-full flex-col border-2 p-6 transition-all hover:-translate-y-1 ${card.current ? "border-pine bg-acid-soft" : featured ? "border-ink bg-card hover:shadow-[6px_6px_0_0_var(--color-ink)]" : "border-ink bg-card hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
+                  {card.badge && <span className="absolute -top-3 right-5 border-2 border-ink bg-acid px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest">{card.badge}</span>}
+                  {card.current && <span className="absolute -top-3 left-5 border-2 border-ink bg-pine px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-acid">Current plan</span>}
+                  <p className="kicker text-pine">{meta.name}</p>
+                  <p className="mt-3 flex items-baseline gap-1">
+                    <span className="font-display text-5xl font-black">${meta.price}</span>
+                    <span className="font-mono text-xs text-ink-soft">{meta.cadence}</span>
+                  </p>
+                  <ul className="mt-5 flex-1 space-y-2.5 border-t-2 border-dashed border-ink/20 pt-5">
+                    {card.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2.5 text-sm leading-snug">
+                        <Icon name={card.plan === "free" ? "check" : "zap"} size={15} className={`mt-0.5 shrink-0 ${card.plan === "free" ? "text-pine" : "text-coral"}`} /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                  {card.plan === "free" ? (
+                    <Link to={user ? "/builder" : "/auth?next=/pricing"} className={`mt-6 block border-2 px-4 py-3 text-center text-sm font-bold transition-all hover:-translate-y-0.5 ${isPro ? "border-ink/20 text-ink-soft" : "border-ink bg-acid hover:shadow-[4px_4px_0_0_var(--color-ink)]"}`}>{card.cta}</Link>
+                  ) : (
+                    <button onClick={card.onCta} disabled={card.current} className={`mt-6 border-2 px-4 py-3 text-center text-sm font-bold transition-all ${card.current ? "cursor-default border-ink/20 text-ink-soft" : "border-ink bg-ink text-acid hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_var(--color-acid)]"}`}>{card.cta}</button>
+                  )}
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+
+        {isPro && (
+          <Reveal>
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-2 border-pine bg-card px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center border-2 border-ink bg-ink text-acid"><Icon name="zap" size={18} /></span>
+                <div>
+                  <p className="font-display text-lg font-black">{planName} · active{planSince ? ` since ${new Date(planSince).toLocaleDateString()}` : ""}</p>
+                  <p className="font-mono text-[11px] text-ink-soft">{downloadsUsed} exports used · unlimited on Pro</p>
+                </div>
+              </div>
+              <button onClick={() => { cancelPro(); toast("Back on the free plan — your 1 free export stays used.", "warn"); }} className="border-2 border-ink px-4 py-2 text-sm font-bold transition-all hover:bg-ink hover:text-acid">Cancel Pro</button>
+            </div>
+          </Reveal>
+        )}
+
         <Reveal delay={120}>
+          <div className="mt-12 grid grid-cols-[1fr_110px_110px] border-2 border-ink bg-card sm:grid-cols-[1fr_170px_190px]">
+            <div className="border-b-2 border-r-2 border-ink bg-paper px-5 py-5"><p className="kicker text-ink-soft">Full comparison</p></div>
+            <div className="border-b-2 border-r-2 border-ink bg-paper px-4 py-5 text-center">
+              <p className="font-display text-xl font-black">Free</p>
+              <p className="font-mono text-[11px] text-ink-soft">$0 · {FREE_EXPORTS} export</p>
+            </div>
+            <div className="border-b-2 border-ink bg-ink px-4 py-5 text-center text-paper">
+              <p className="font-display text-xl font-black text-acid">Pro</p>
+              <p className="font-mono text-[11px] text-paper/70">${PLANS[proPlan].price}{PLANS[proPlan].cadence}</p>
+            </div>
+            {rows.map(([f, free, pro]) => (
+              <div key={f} style={{ display: "contents" }}>
+                <div className="border-b border-r border-ink/10 px-5 py-3.5 text-sm font-semibold">{f}</div>
+                <div className="border-b border-r border-ink/10 px-4 py-3.5 text-center text-sm text-ink-soft">{free === "Included" ? <Icon name="check" size={16} className="mx-auto text-pine" /> : free}</div>
+                <div className="border-b border-ink/10 bg-ink/5 px-4 py-3.5 text-center text-sm font-bold text-pine-deep">{pro === "Included" ? <Icon name="check" size={16} className="mx-auto text-pine" /> : pro}</div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
+        <Reveal delay={160}>
           <div className="mt-6 flex flex-wrap items-center gap-4 border-2 border-dashed border-ink/30 px-5 py-4">
-            <Icon name="star" size={20} className="text-coral" />
-            <p className="text-sm text-ink-soft"><strong className="text-ink">Lifetime option:</strong> pay $29 once inside checkout and never see a bill again. {!user && "Accounts are free and optional — exports work without one."}</p>
+            <Icon name="shield" size={20} className="text-pine" />
+            <p className="text-sm text-ink-soft"><strong className="text-ink">No card to start.</strong> The free export unlocks the moment you create an account. Upgrade only when you're exporting every tweak — that's what Pro is for. Cancel anytime; exports you already made stay yours.</p>
           </div>
         </Reveal>
       </section>
@@ -266,19 +365,34 @@ export function PricingPage() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-4" onClick={() => !paying && setCheckout(null)}>
           <div className="toast-in w-full max-w-md border-2 border-ink bg-paper hs-acid" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b-2 border-ink bg-ink px-5 py-3.5">
-              <p className="font-display text-lg font-black text-paper">{paid ? "You're Pro. Welcome." : checkout === "pro_lifetime" ? "Pro Lifetime — $29" : "Pro Monthly — $4/mo"}</p>
+              <p className="font-display text-lg font-black text-paper">{paid ? "You're Pro. Welcome." : checkout ? `${PLANS[checkout].name} — $${PLANS[checkout].price}${PLANS[checkout].cadence === "once" ? "" : PLANS[checkout].cadence}` : ""}</p>
               {!paying && <button onClick={() => setCheckout(null)} className="grid h-8 w-8 place-items-center border border-paper/40 text-paper hover:border-acid hover:text-acid"><Icon name="x" size={14} /></button>}
             </div>
             {paid ? (
               <div className="p-8 text-center">
                 <span className="mx-auto grid h-14 w-14 place-items-center border-2 border-pine bg-pine text-acid"><Icon name="check" size={28} /></span>
                 <p className="mt-4 font-display text-2xl font-black">Payment recorded.</p>
-                <p className="mt-2 text-sm text-ink-soft">Pro features are unlocked on this device. A receipt was queued to your email.</p>
+                <p className="mt-2 text-sm text-ink-soft">Unlimited exports are unlocked on this account. A receipt was queued to your email.</p>
                 <Link to="/builder" onClick={() => setCheckout(null)} className="mt-5 inline-block border-2 border-ink bg-acid px-5 py-2.5 font-bold">Back to the builder</Link>
+              </div>
+            ) : !user ? (
+              <div className="p-6">
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Checkouts attach to an account so your Pro status and export history follow you across devices.
+                  <strong className="text-ink"> Create your free account first</strong> — your {FREE_EXPORTS} free export is included, then come straight back here.
+                </p>
+                <ul className="mt-4 space-y-2 border-t border-ink/10 pt-4">
+                  {["Takes 20 seconds — email + password", `${FREE_EXPORTS} free export included`, "Resume drafts stay saved in your browser"].map((b) => (
+                    <li key={b} className="flex items-center gap-2.5 text-sm font-semibold"><Icon name="check" size={15} className="text-pine" /> {b}</li>
+                  ))}
+                </ul>
+                <Link to="/auth?next=/pricing" className="hs-sm mt-5 flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5">
+                  Create free account <Icon name="arrow" size={15} />
+                </Link>
               </div>
             ) : (
               <form onSubmit={pay} className="space-y-4 p-6">
-                <p className="border border-coral/50 bg-card px-3 py-2 font-mono text-[10.5px] leading-relaxed text-ink-soft">Demo checkout — wire Stripe Checkout here in production (see README).</p>
+                <p className="border border-coral/50 bg-card px-3 py-2 font-mono text-[10.5px] leading-relaxed text-ink-soft">Demo checkout — wire Stripe Checkout here in production (README §6). purchase conversion fires on completion.</p>
                 <label className="block"><span className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-soft">Name on card</span>
                   <input required placeholder="Alex Morgan" className="w-full border border-ink/25 bg-white px-3 py-2.5 text-sm focus:border-pine focus:outline-none" /></label>
                 <label className="block"><span className="mb-1 block font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-soft">Card number</span>
@@ -290,10 +404,10 @@ export function PricingPage() {
                     <input required placeholder="123" className="w-full border border-ink/25 bg-white px-3 py-2.5 font-mono text-sm focus:border-pine focus:outline-none" /></label>
                 </div>
                 <button disabled={paying} className="hs-sm flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5 disabled:opacity-60">
-                  {paying ? <><span className="spin inline-block h-4 w-4 border-2 border-ink border-t-transparent rounded-full" /> Processing…</> : `Pay $${checkout === "pro_lifetime" ? 29 : 4} securely`}
+                  {paying ? <><span className="spin inline-block h-4 w-4 rounded-full border-2 border-ink border-t-transparent" /> Processing…</> : `Pay $${checkout ? PLANS[checkout].price : 0} securely`}
                 </button>
-                {checkout === "pro_monthly" && (
-                  <button type="button" onClick={() => setCheckout("pro_lifetime")} className="w-full text-center text-xs font-bold text-pine underline-offset-2 hover:underline">or switch to Lifetime — $29 once</button>
+                {checkout && checkout !== "pro_lifetime" && (
+                  <button type="button" onClick={() => setCheckout("pro_lifetime")} className="w-full text-center text-xs font-bold text-pine underline-offset-2 hover:underline">or switch to Lifetime — $79 once, never billed again</button>
                 )}
               </form>
             )}
@@ -306,8 +420,11 @@ export function PricingPage() {
 
 /* ================= Auth ================= */
 export function AuthPage() {
-  const { user, signup, login } = useAuth();
+  const { user, isPro, planName, downloadsUsed, freeExportsLeft, signup, login } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = params.get("next") || "/builder";
   const [mode, setMode] = useState<"in" | "up">("up");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -321,7 +438,8 @@ export function AuthPage() {
     const err = mode === "up" ? await signup(email, password) : await login(email, password);
     setBusy(false);
     if (err) { setError(err); return; }
-    toast(mode === "up" ? "Account created — conversion event fired." : "Welcome back.", "ok");
+    toast(mode === "up" ? `Account created — your ${FREE_EXPORTS} free export is unlocked.` : "Welcome back.", "ok");
+    navigate(next);
   };
 
   if (user) {
@@ -331,6 +449,19 @@ export function AuthPage() {
         <span className="mx-auto grid h-16 w-16 place-items-center border-2 border-pine bg-pine text-acid"><Icon name="user" size={30} /></span>
         <h1 className="mt-5 font-display text-4xl font-black">Signed in as {user.email}</h1>
         <p className="mt-3 text-ink-soft">{isSupabaseConfigured ? "Connected to your Supabase workspace — cloud sync is active." : "Running in local demo mode. Add Supabase credentials to enable real accounts (see README)."}</p>
+        <div className="mt-6 border-2 border-ink bg-card p-5 text-left">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="kicker text-pine">Your plan</p>
+              <p className="mt-1 font-display text-xl font-black">{planName}</p>
+            </div>
+            <span className={`border-2 px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider ${isPro ? "border-ink bg-ink text-acid" : "border-pine bg-acid-soft text-pine-deep"}`}>
+              {isPro ? "Unlimited exports" : `${freeExportsLeft} of ${FREE_EXPORTS} free export${FREE_EXPORTS === 1 ? "" : "s"} left`}
+            </span>
+          </div>
+          <p className="mt-3 border-t border-ink/10 pt-3 font-mono text-[10.5px] text-ink-soft">{downloadsUsed} export{downloadsUsed === 1 ? "" : "s"} used on this account.</p>
+          {!isPro && <Link to="/pricing" className="mt-3 inline-block text-sm font-bold text-pine underline-offset-2 hover:underline">Upgrade to Pro for unlimited downloads →</Link>}
+        </div>
         <Link to="/builder" className="mt-6 inline-block border-2 border-ink bg-acid px-6 py-3 font-bold">Continue building</Link>
       </section>
     );
@@ -338,8 +469,14 @@ export function AuthPage() {
 
   return (
     <section className="dotgrid mx-auto max-w-lg px-4 py-16 sm:px-6">
-      <Seo title={mode === "up" ? "Create your free account | ResumeBuild" : "Sign in | ResumeBuild"} description="Create a free ResumeBuild account to sync resumes across devices." path="/auth" />
+      <Seo title={mode === "up" ? "Create your free account — 1 Free Export | ResumeBuild" : "Sign in | ResumeBuild"} description="Create a free ResumeBuild account: 1 free resume export included, ATS scoring and all templates. No card required." path="/auth" />
       <Reveal>
+        <div className="mb-4 flex items-center gap-3 border-2 border-ink bg-acid px-4 py-3 hs-sm">
+          <Icon name="star" size={18} className="shrink-0" />
+          <p className="text-sm font-bold">Every new account unlocks {FREE_EXPORTS} free resume export — no card needed.</p>
+        </div>
+      </Reveal>
+      <Reveal delay={80}>
         <div className="border-2 border-ink bg-card hs-sm">
           <div className="grid grid-cols-2 border-b-2 border-ink">
             <button onClick={() => setMode("up")} className={`py-3.5 font-display text-lg font-black transition-colors ${mode === "up" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Create account</button>

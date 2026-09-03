@@ -92,7 +92,41 @@ create policy "events insert" on public.events for insert with check (true);
 create policy "events self read" on public.events for select using (auth.uid() = user_id);
 
 -- ============================================================
+-- Subscriptions & monetization
+-- ============================================================
+alter table public.profiles add column if not exists downloads_used int default 0;
+alter table public.profiles add column if not exists pro_since timestamptz;
+
+-- Plan ledger: one row per checkout. In production a Stripe webhook
+-- (service-role Edge Function) writes here; the client only reads.
+create table if not exists public.subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_id text not null,                -- pro_monthly | pro_annual | pro_lifetime
+  status text not null default 'active', -- active | canceled | past_due
+  amount int not null default 0,         -- in cents
+  currency text not null default 'usd',
+  stripe_customer text,
+  stripe_subscription text,
+  stripe_invoice text,
+  current_period_end timestamptz,
+  created_at timestamptz default now()
+);
+create index if not exists subs_user_idx on public.subscriptions(user_id);
+
+alter table public.subscriptions enable row level security;
+drop policy if exists "subs owner all" on public.subscriptions;
+create policy "subs owner all" on public.subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ============================================================
 -- Recommended Auth settings (Dashboard → Authentication → Providers):
 --   • Enable Email provider (confirm email: off during testing)
 --   • Add your Vercel production URL to Redirect URLs
+--
+-- Payments (README §6): the demo checkout in /pricing flips the plan
+-- client-side. For production, create Stripe Price IDs for pro_monthly
+-- (USD 7/mo), pro_annual (USD 49/yr), pro_lifetime (USD 79 once), and
+-- replace the pay() handler with a redirect to Stripe Checkout; a
+-- webhook Edge Function then upserts public.subscriptions and profiles.
 -- ============================================================

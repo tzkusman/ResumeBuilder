@@ -1,13 +1,14 @@
 # ResumeBuild — desktop packaging config (electron-builder)
-# Triggered automatically by .github/workflows/release.yml on version tags
-# or via Actions → "Release desktop app" → Run workflow.
+# Triggered by .github/workflows/release.yml on version tags / manual runs.
 #
-# The app streams the production site, so only the Electron shell ships:
-# electron/, icon.png and package.json. No web bundle, no node_modules.
+# NOTE: no `icon:` line on purpose. electron-builder auto-resolves
+# icon.ico from the project root (the release workflow creates it),
+# and falls back to the default icon if absent — so a bad/missing icon
+# can never fail the build.
 
 appId: app.resumebuild.desktop
 productName: ResumeBuild
-copyright: Copyright © 2026 ResumeBuild
+copyright: Copyright (c) 2026 ResumeBuild
 
 directories:
   output: release
@@ -15,9 +16,10 @@ directories:
 extraMetadata:
   main: electron/main.cjs
 
+# Only the Electron wrapper is packaged — the app streams the live
+# Vercel site, so there is no web bundle to ship.
 files:
   - electron/**/*
-  - icon.png
   - package.json
 
 win:
@@ -25,8 +27,6 @@ win:
     - target: nsis
       arch:
         - x64
-  # The release workflow converts icon.png → icon.ico (NSIS only accepts .ico).
-  icon: icon.ico
   artifactName: ResumeBuild-Setup-${version}-windows.${ext}
 
 nsis:
@@ -34,20 +34,17 @@ nsis:
   allowToChangeInstallationDirectory: true
   shortcutName: ResumeBuild
   createDesktopShortcut: always
-  installerIcon: icon.png
-  uninstallerIcon: icon.png
 
 mac:
   target: dmg
-  icon: icon.png
   artifactName: ResumeBuild-${version}-macos.${ext}
 
 linux:
   target: AppImage
-  icon: icon.png
   artifactName: ResumeBuild-${version}-linux.${ext}
   category: Office
 
-# Auto-detected from the git remote, so repo renames never break releases.
+# Auto-detected from the git remote (owner/repo intentionally omitted,
+# so this works regardless of repository renames).
 publish:
   provider: github

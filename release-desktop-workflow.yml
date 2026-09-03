@@ -1,16 +1,25 @@
 # ================================================================
-#  ⬇ COPY THIS ENTIRE FILE ⬇  (only if your repo copy differs)
-#  Repo path: .github/workflows/release.yml
+#  ⬇ COPY THIS ENTIRE FILE ⬇
+#  Target in your repo: .github/workflows/release.yml
+#  (✏️ edit → Ctrl+A → Delete → Ctrl+V this → Commit changes)
 # ================================================================
 
 name: Release desktop app
 
-# The desktop app wraps the live Vercel site, so a release only packages the
-# Electron shell — no web build needed. ~3 minutes end to end.
+# The desktop app wraps the live Vercel site (resume-builder-pd3c.vercel.app),
+# so a release only packages the Electron shell — no web build needed.
 #
-# Trigger: Actions → "Release desktop app" → Run workflow → type a version.
-# Produces: ResumeBuild-Setup-x.y.z-windows.exe (NSIS installer with the app
-# icon), ResumeBuild-x.y.z-macos.dmg, ResumeBuild-x.y.z-linux.AppImage.
+# ⚠️ IMPORTANT — how to trigger:
+#   Actions → "Release desktop app" → BLUE "Run workflow" button → type a
+#   version → green "Run workflow".
+#   NEVER click "Re-run all jobs" on an old failed run: GitHub re-runs use the
+#   workflow file as it was at that old commit, so no fix would ever apply.
+#
+# Icon handling (cannot fail the build):
+#   icon.ico in repo root  → used as-is
+#   icon.png  in repo root → auto-converted to icon.ico (NSIS needs .ico)
+#   neither                → brand icon generated from embedded SVG
+#   everything fails       → default Electron icon, build still succeeds
 
 on:
   workflow_dispatch:
@@ -61,11 +70,7 @@ jobs:
         working-directory: ${{ steps.root.outputs.dir }}
         run: npm i -D electron@31.7.7 electron-builder@24.13.3 --no-package-lock
 
-      # The Windows installer (NSIS) only accepts .ico files. This converts the
-      # repo's icon.png (or rasterizes the embedded brand SVG as a fallback) into
-      # a multi-size icon.ico using png2icons — the same pure-JS library
-      # electron-builder uses internally — then points the config at it.
-      - name: Ensure app icon
+      - name: Ensure app icon (never fails the build)
         shell: bash
         working-directory: ${{ steps.root.outputs.dir }}
         run: |
@@ -73,25 +78,21 @@ jobs:
             npm i --no-save --no-package-lock png2icons >/dev/null 2>&1
             node -e "const fs=require('fs');const {PNG2ICO}=require('png2icons');PNG2ICO(fs.readFileSync('icon.png'),16,256,true).then(b=>{fs.writeFileSync('icon.ico',Buffer.from(b));console.log('icon.ico written')}).catch(e=>{console.error(e);process.exit(1)})"
           }
+          if [ ! -f icon.ico ] && [ -f icon.png ]; then
+            make_ico || echo "::warning::repo icon.png could not be converted to ico"
+          fi
           if [ ! -f icon.ico ]; then
-            if [ -f icon.png ]; then
-              make_ico || true
-            fi
-            if [ ! -f icon.ico ]; then
-              printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#131f1a"/><path d="M148 96h148l68 72v248a16 16 0 0 1-16 16H148a16 16 0 0 1-16-16V112a16 16 0 0 1 16-16Z" fill="#d9f24f"/><path d="M296 96l68 72h-52a16 16 0 0 1-16-16V96Z" fill="#a8c22e"/><rect x="168" y="204" width="176" height="22" rx="6" fill="#131f1a"/><rect x="168" y="252" width="176" height="22" rx="6" fill="#131f1a"/><rect x="168" y="300" width="112" height="22" rx="6" fill="#131f1a"/><circle cx="352" cy="372" r="60" fill="#ff5a36" stroke="#131f1a" stroke-width="10"/><path d="M326 372l18 18 36-38" fill="none" stroke="#131f1a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>' > .icon-source.svg
-              npx --yes sharp-cli -i .icon-source.svg -o icon.png resize 1024 1024 || true
-              rm -f .icon-source.svg
-              if [ -f icon.png ]; then make_ico || true; fi
+            printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#131f1a"/><path d="M148 96h148l68 72v248a16 16 0 0 1-16 16H148a16 16 0 0 1-16-16V112a16 16 0 0 1 16-16Z" fill="#d9f24f"/><path d="M296 96l68 72h-52a16 16 0 0 1-16-16V96Z" fill="#a8c22e"/><rect x="168" y="204" width="176" height="22" rx="6" fill="#131f1a"/><rect x="168" y="252" width="176" height="22" rx="6" fill="#131f1a"/><rect x="168" y="300" width="112" height="22" rx="6" fill="#131f1a"/><circle cx="352" cy="372" r="60" fill="#ff5a36" stroke="#131f1a" stroke-width="10"/><path d="M326 372l18 18 36-38" fill="none" stroke="#131f1a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>' > .icon-source.svg
+            npx --yes sharp-cli -i .icon-source.svg -o .icon-fallback.png resize 1024 1024 || true
+            rm -f .icon-source.svg
+            if [ -f .icon-fallback.png ]; then
+              cp .icon-fallback.png icon.png
+              rm -f .icon-fallback.png
+              make_ico || echo "::warning::fallback icon could not be converted to ico"
             fi
           fi
-          if [ -f icon.ico ]; then
-            sed -i 's|^[[:space:]]*icon:.*|  icon: icon.ico|' electron-builder.yml
-            grep -q 'icon: icon.ico' electron-builder.yml || sed -i '/^win:/a\  icon: icon.ico' electron-builder.yml
-            echo "Config now uses:"; grep -n 'icon:' electron-builder.yml || true
-          else
-            echo "::warning::Could not produce icon.ico — build continues with the default icon."
-            sed -i '/^[[:space:]]*icon:/d' electron-builder.yml
-          fi
+          echo "--- icon files present in project root:"
+          ls -la | grep -i 'icon' || echo "(none - default Electron icon will be used, build continues)"
 
       - name: Create version tag (manual runs only)
         if: github.event_name == 'workflow_dispatch'

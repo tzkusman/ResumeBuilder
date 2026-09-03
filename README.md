@@ -79,9 +79,13 @@ work exactly like the web app, and every Vercel deploy instantly updates every
 installed app. Includes a branded splash, an offline/reconnect screen, a
 single-instance lock, and external links opening in the system browser.
 
-The app icon lives at `icon.png` (repo root, 256×256 or larger; the master
-artwork is `public/icon.svg`). electron-builder converts it to `.ico`/`.icns`
-for the installer, taskbar and window chrome.
+Icons are self-serve and failure-proof: drop `icon.png` (or a ready
+`icon.ico`) next to `package.json` and releases use it — the workflow
+auto-converts PNG → ICO because the Windows installer (NSIS) only accepts
+`.ico`. With no icon present it generates the brand mark from an embedded
+SVG; if even that fails it builds with Electron's default icon instead of
+aborting (the old hard-coded `icon: icon.png` line is gone from
+`electron-builder.yml` for exactly this reason).
 
 Packaging config lives in `electron-builder.yml` (publishes to the GitHub
 Releases of `tzkusman/Resumebuild`).

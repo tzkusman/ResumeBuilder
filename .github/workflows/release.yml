@@ -1,3 +1,7 @@
+# ================================================================
+#  ⬇ COPY THIS ENTIRE FILE ⬇  (only if your repo copy differs)
+#  Repo path: .github/workflows/release.yml
+# ================================================================
 
 name: Release desktop app
 

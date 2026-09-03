@@ -1,9 +1,22 @@
 name: Release desktop app
 
+# Push a tag → installers appear in GitHub Releases automatically:
+#   git tag v1.0.0 && git push origin v1.0.0
+# Produces: ResumeBuild-Setup-x.y.z-windows.exe (NSIS installer),
+#           ResumeBuild-x.y.z-macos.dmg, ResumeBuild-x.y.z-linux.AppImage
+
 on:
   push:
     tags:
       - "v*.*.*"
+  # Manual trigger from the GitHub Actions tab ("Run workflow" button) —
+  # lets you build the .exe without installing git or pushing a tag.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (e.g. 1.0.0)"
+        default: "1.0.0"
+        required: true
 
 permissions:
   contents: write
@@ -11,12 +24,13 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout (Resumebuild repo)
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -31,20 +45,17 @@ jobs:
       - name: Build web bundle
         run: npm run build
 
-      - name: Install Electron toolchain
-        run: npm i -D electron electron-builder
+      - name: Create version tag (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "v${{ inputs.version }}"
+          git push -f origin "v${{ inputs.version }}"
 
       - name: Package & publish installers to GitHub Releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: >
-          npx electron-builder
-          --publish always
-          --config.extraMetadata.main=electron/main.cjs
-          --config.appId=app.resumebuild.desktop
-          --config.productName=ResumeBuild
-          --config.files="dist/**/*,electron/**/*"
-          --config.directories.output=release
-          --config.win.target=nsis
-          --config.mac.target=dmg
-          --config.linux.target=AppImage
+          # Build macOS unsigned so the job passes without an Apple certificate.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --publish always

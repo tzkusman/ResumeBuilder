@@ -8,6 +8,23 @@ Repo: **Resumebuild** · Web: **https://resumebuild.vercel.app**
 
 ---
 
+## 0. Push this workspace to GitHub (once)
+
+```bash
+git init -b main
+git add .
+git commit -m "ResumeBuild v1.0.0 - ATS resume builder with SEO pages"
+git remote add origin https://github.com/tzkusman/Resumebuild.git
+git push -u origin main
+```
+
+Or run the ready-made helper: `scripts/push-to-github.bat` (Windows) /
+`scripts/push-to-github.sh` (macOS/Linux). Then tag to trigger the desktop
+release pipeline: `git tag v1.0.0 && git push origin v1.0.0`
+(see section 5 — the Windows `.exe` lands in Releases automatically).
+
+---
+
 ## 1. Analytics & conversion tracking (do this before launch)
 
 1. Create a GA4 property → Admin → Data Streams → copy the `G-XXXXXXXXXX` ID.
@@ -66,14 +83,19 @@ Because this sandbox doesn't modify `package.json`, add these once locally:
 "main": "electron/main.cjs",
 "scripts": {
   "electron": "npm run build && npx electron .",
-  "dist": "npm run build && npx electron-builder --config.extraMetadata.main=electron/main.cjs"
+  "dist": "npm run build && npx electron-builder"
 }
 ```
 
+Packaging config lives in `electron-builder.yml` (publishes to the GitHub
+Releases of `tzkusman/Resumebuild`).
+
 **Release flow:** `git tag v1.0.0 && git push origin v1.0.0` — the workflow in
-`.github/workflows/release.yml` builds NSIS (Windows), DMG (macOS) and AppImage
-(Linux) installers and publishes them to the repo's **GitHub Releases** page
-automatically. Test locally first with `npx electron .` after `npm i -D electron electron-builder`.
+`.github/workflows/release.yml` builds the Windows NSIS installer
+(`ResumeBuild-Setup-x.y.z-windows.exe`), the macOS DMG and the Linux AppImage,
+then publishes all three to the repo's **GitHub Releases** page automatically
+(~6 min, no signing certificates required). Test locally first with
+`npx electron .` after `npm i -D electron electron-builder`.
 
 ## 6. Growing the SEO engine (the ongoing job)
 

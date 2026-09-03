@@ -1,0 +1,47 @@
+# ResumeBuild — desktop packaging config (electron-builder)
+# Triggered automatically by .github/workflows/release.yml on version tags.
+# `extraMetadata.main` points Electron at our wrapper without touching package.json.
+
+appId: app.resumebuild.desktop
+productName: ResumeBuild
+copyright: Copyright © 2026 ResumeBuild
+
+directories:
+  output: release
+
+extraMetadata:
+  main: electron/main.cjs
+
+# Explicit file list = only the built web app + Electron wrapper are packaged.
+# (Prevents the full node_modules tree from being bundled into installers.)
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ResumeBuild-Setup-${version}-windows.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: ResumeBuild
+  createDesktopShortcut: always
+
+mac:
+  target: dmg
+  artifactName: ResumeBuild-${version}-macos.${ext}
+
+linux:
+  target: AppImage
+  artifactName: ResumeBuild-${version}-linux.${ext}
+  category: Office
+
+publish:
+  provider: github
+  owner: tzkusman
+  repo: Resumebuild

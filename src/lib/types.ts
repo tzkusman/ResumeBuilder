@@ -20,12 +20,24 @@ export interface XpEntry {
   bullets: string[];
 }
 
+// Alias for CV parser compatibility
+export interface Experience extends XpEntry {
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface EduEntry {
   id: string;
   degree: string;
   school: string;
   location: string;
   year: string;
+}
+
+// Alias for CV parser compatibility
+export interface Education extends EduEntry {
+  institution?: string;
+  graduationYear?: string;
 }
 
 export type TemplateId = "merit" | "ledger" | "atlas" | "craft";

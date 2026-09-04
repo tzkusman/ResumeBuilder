@@ -1,6 +1,5 @@
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
-import stringSimilarity from 'string-similarity';
 
 // Initialize PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
@@ -246,7 +245,7 @@ function analyzeSections(text: string, normalizedText: string): SectionAnalysis 
   
   const summaryInfo = {
     exists: hasSummary,
-    quality: summaryLength > 200 ? 'good' : summaryLength > 100 ? 'fair' : 'poor',
+    quality: (summaryLength > 200 ? 'good' : summaryLength > 100 ? 'fair' : 'poor') as 'good' | 'fair' | 'poor',
     score: hasSummary ? (summaryLength > 200 ? 100 : summaryLength > 100 ? 70 : 40) : 0
   };
   

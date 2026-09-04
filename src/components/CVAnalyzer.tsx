@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Info, TrendingUp, Target, BookOpen, Zap } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Info, TrendingUp, Target, BookOpen, Zap, Edit3, ArrowRight } from 'lucide-react';
 import { parseDocxFile, parsePdfFile, analyzeCV, ATSAnalysis } from '../lib/cv-analyzer';
+import { parseCVToResume, mergeCVWithResume } from '../lib/cv-parser';
+import type { ResumeData } from '../lib/types';
 
 export function CVAnalyzer() {
   const [file, setFile] = useState<File | null>(null);
@@ -8,6 +10,45 @@ export function CVAnalyzer() {
   const [analysis, setAnalysis] = useState<ATSAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobDescription, setJobDescription] = useState('');
+  const [parsedResume, setParsedResume] = useState<Partial<ResumeData> | null>(null);
+  const [showImportSuccess, setShowImportSuccess] = useState(false);
+  
+  // Function to import parsed resume into builder
+  const importToBuilder = useCallback(() => {
+    if (!parsedResume) return;
+    
+    // Get existing resume from localStorage or create new one
+    const existingResumeStr = localStorage.getItem('rb_resume_v1');
+    const existingResume: ResumeData | null = existingResumeStr ? JSON.parse(existingResumeStr) : null;
+    
+    // Create empty resume as fallback
+    const emptyResume: ResumeData = {
+      id: Math.random().toString(36).slice(2, 10),
+      roleSlug: null,
+      contact: { fullName: '', title: '', email: '', phone: '', location: '', website: '', linkedin: '' },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      languages: [],
+      certifications: [],
+      template: 'merit',
+      accent: '#17594a'
+    };
+    
+    // Merge parsed data with existing or empty resume
+    const merged = mergeCVWithResume(parsedResume, existingResume || emptyResume);
+    
+    // Save to localStorage
+    localStorage.setItem('rb_resume_v1', JSON.stringify(merged));
+    
+    // Show success message
+    setShowImportSuccess(true);
+    setTimeout(() => setShowImportSuccess(false), 5000);
+    
+    // Redirect to builder
+    window.location.href = '/builder';
+  }, [parsedResume]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -28,6 +69,7 @@ export function CVAnalyzer() {
     setFile(uploadedFile);
     setError(null);
     setAnalysis(null);
+    setParsedResume(null);
     setIsAnalyzing(true);
 
     try {
@@ -43,6 +85,10 @@ export function CVAnalyzer() {
         throw new Error('Unsupported file format');
       }
 
+      // Parse CV into structured resume data
+      const parsed = parseCVToResume(text);
+      setParsedResume(parsed);
+      
       // Analyze the CV
       const result = analyzeCV(text, jobDescription || undefined);
       result.formatting.fileFormat = uploadedFile.name.endsWith('.docx') ? 'docx' : 'pdf';
@@ -180,9 +226,12 @@ export function CVAnalyzer() {
           className="w-full h-32 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
         />
         {jobDescription && analysis && (
-          <Button onClick={reanalyzeWithJobDescription} variant="secondary" className="mt-2">
+          <button
+            onClick={reanalyzeWithJobDescription}
+            className="mt-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
             Re-analyze with Job Description
-          </Button>
+          </button>
         )}
       </div>
 
@@ -414,10 +463,39 @@ export function CVAnalyzer() {
             <p className="text-gray-600 mb-4">
               Use our professional resume builder to create an ATS-optimized resume with perfect formatting
             </p>
-            <a href="/builder" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-              Go to Resume Builder
-            </a>
+            {parsedResume ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 text-sm text-green-700 bg-green-100 px-4 py-2 rounded-lg inline-block">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Resume data extracted successfully!</span>
+                </div>
+                <br/>
+                <button
+                  onClick={importToBuilder}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                >
+                  <Edit3 className="w-5 h-5" />
+                  Import & Edit in Builder
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <a href="/builder" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                Go to Resume Builder
+              </a>
+            )}
           </div>
+          
+          {/* Success Toast */}
+          {showImportSuccess && (
+            <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50">
+              <CheckCircle className="w-6 h-6" />
+              <div>
+                <p className="font-semibold">Resume imported successfully!</p>
+                <p className="text-sm text-green-100">Redirecting to builder...</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

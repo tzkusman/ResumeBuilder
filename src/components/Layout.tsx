@@ -5,6 +5,7 @@ import { useAuth, useI18n } from "../store/AppStore";
 import { PROFESSIONS } from "../data/professions";
 import { COUNTRIES } from "../data/countries";
 import { isSupabaseConfigured } from "../lib/supabase";
+import { LANGUAGE_NAMES, type LanguageCode } from "../lib/i18n";
 
 function Wordmark() {
   return (
@@ -21,6 +22,7 @@ function Wordmark() {
 
 export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
   const { user, logout, isPro } = useAuth();
   const { lang, setLang, t } = useI18n();
   const loc = useLocation();
@@ -32,6 +34,8 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: "/cover-letter", label: t("nav.cover") },
     { to: "/pricing", label: t("nav.pricing") },
   ];
+
+  const languages: LanguageCode[] = ["en", "hi", "es", "fr", "de", "pt", "ar", "zh", "ja"];
 
   const linkCls = ({ isActive }: { isActive: boolean }) =>
     `border-b-2 px-0.5 pb-0.5 text-sm font-semibold transition-colors ${isActive ? "border-pine text-pine-deep" : "border-transparent text-ink-soft hover:text-ink hover:border-line"}`;
@@ -45,9 +49,24 @@ export default function Layout({ children }: { children: ReactNode }) {
             {nav.map((n) => <NavLink key={n.to} to={n.to} className={linkCls}>{n.label}</NavLink>)}
           </nav>
           <div className="flex items-center gap-2.5">
-            <div className="hidden items-center border border-ink/25 bg-card sm:flex" role="group" aria-label="Language">
-              <button onClick={() => setLang("en")} className={`px-2.5 py-1.5 font-mono text-[11px] font-semibold ${lang === "en" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>EN</button>
-              <button onClick={() => setLang("ur")} className={`px-2.5 py-1.5 font-mono text-[11px] font-semibold ${lang === "ur" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>اردو</button>
+            <div className="relative hidden sm:block">
+              <button onClick={() => setLangMenuOpen(!langMenuOpen)} className="flex items-center gap-1.5 border border-ink/25 bg-card px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink">
+                {LANGUAGE_NAMES[lang as LanguageCode]?.split(" ")[0] || "EN"}
+                <Icon name="chev" size={12} />
+              </button>
+              {langMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1.5 max-h-80 w-48 overflow-y-auto border-2 border-ink bg-card shadow-lg">
+                  {languages.map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => { setLang(code); setLangMenuOpen(false); }}
+                      className={`block w-full px-3 py-2 text-left text-xs font-semibold transition-colors hover:bg-acid-soft ${lang === code ? "bg-ink text-acid" : "text-ink-soft"}`}
+                    >
+                      {LANGUAGE_NAMES[code]}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {isPro && <span className="hidden border border-acid bg-acid-soft px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-pine-deep md:inline">Pro</span>}
             {user ? (

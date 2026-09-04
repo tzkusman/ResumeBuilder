@@ -10,22 +10,22 @@ interface ToastCtx { toast: (msg: string, kind?: "ok" | "warn") => void }
 const ToastContext = createContext<ToastCtx>({ toast: () => {} });
 export const useToast = () => useContext(ToastContext);
 
-/* ---------------- i18n (English / اردو) ---------------- */
-export type Lang = "en" | "ur";
+/* ---------------- i18n (multi-language) ---------------- */
+export type Lang = "en" | "hi" | "es" | "fr" | "de" | "pt" | "ar" | "zh" | "ja";
 const DICT: Record<string, Record<Lang, string>> = {
-  "nav.examples": { en: "Examples", ur: "مثالیں" },
-  "nav.countries": { en: "Countries", ur: "ممالک" },
-  "nav.templates": { en: "Templates", ur: "ٹیمپلیٹس" },
-  "nav.cover": { en: "Cover Letter", ur: "کور لیٹر" },
-  "nav.pricing": { en: "Pricing", ur: "قیمتیں" },
-  "nav.build": { en: "Build my resume", ur: "میرا ریزیومے بنائیں" },
-  "nav.signin": { en: "Sign in", ur: "سائن اِن" },
-  "hero.kicker": { en: "Free ATS-proof resume builder", ur: "مفت ATS پروف ریزیومے بلڈر" },
-  "hero.title1": { en: "The resume that gets the", ur: "وہ ریزیومے جو حاصل کرے" },
-  "hero.title2": { en: "callback.", ur: "کال بیک۔" },
-  "hero.sub": { en: "Real examples for 20+ professions, country-by-country CV rules, and an ATS engine that scores every draft before a robot does.", ur: "20 سے زائد پیشوں کی حقیقی مثالیں، ملک بہ ملک CV قوانین، اور ایک ATS انجن جو ہر مسودے کا جائزہ لیتا ہے۔" },
-  "hero.cta2": { en: "Browse example resumes", ur: "مثال ریزیومے دیکھیں" },
-  "cta.start": { en: "Start free — no sign-up", ur: "مفت شروع کریں" },
+  "nav.examples": { en: "Examples", hi: "उदाहरण", es: "Ejemplos", fr: "Exemples", de: "Beispiele", pt: "Exemplos", ar: "أمثلة", zh: "示例", ja: "例" },
+  "nav.countries": { en: "Countries", hi: "देश", es: "Países", fr: "Pays", de: "Länder", pt: "Países", ar: "الدول", zh: "国家", ja: "国別ガイド" },
+  "nav.templates": { en: "Templates", hi: "टेम्पलेट", es: "Plantillas", fr: "Modèles", de: "Vorlagen", pt: "Modelos", ar: "قوالب", zh: "模板", ja: "テンプレート" },
+  "nav.cover": { en: "Cover Letter", hi: "कवर लेटर", es: "Carta", fr: "Lettre", de: "Anschreiben", pt: "Carta", ar: "رسالة تغطية", zh: "求职信", ja: "カバーレター" },
+  "nav.pricing": { en: "Pricing", hi: "मूल्य", es: "Precios", fr: "Tarifs", de: "Preise", pt: "Preços", ar: "الأسعار", zh: "定价", ja: "料金" },
+  "nav.build": { en: "Build my resume", hi: "अपना रिज़्यूम बनाएं", es: "Crear currículum", fr: "Créer mon CV", de: "Lebenslauf erstellen", pt: "Criar currículo", ar: "أنشئ سيرتي", zh: "创建简历", ja: "履歴書を作成" },
+  "nav.signin": { en: "Sign in", hi: "साइन इन", es: "Entrar", fr: "Connexion", de: "Anmelden", pt: "Entrar", ar: "تسجيل الدخول", zh: "登录", ja: "ログイン" },
+  "hero.kicker": { en: "Free ATS-proof resume builder", hi: "मुफ्त ATS-प्रूफ रیزیومے بلڈر", es: "Constructor de currículums ATS", fr: "Créateur de CV ATS gratuit", de: "Kostenloser ATS-Lebenslauf", pt: "Construtor de currículo ATS", ar: "منشئ سيرة ذاتية مجاني", zh: "免费 ATS 简历构建器", ja: "無料 ATS 対応履歴書" },
+  "hero.title1": { en: "The resume that gets the", hi: "वह रिज़्यूम जो प्राप्त करता है", es: "El currículum que consigue el", fr: "Le CV qui obtient le", de: "Der Lebenslauf, der das bekommt", pt: "O currículo que consegue o", ar: "السيرة الذاتية التي تحصل على", zh: "获得面试的简历", ja: "面接を得る履歴書" },
+  "hero.title2": { en: "callback.", hi: "कॉलबैक।", es: "llamada.", fr: "rappel.", de: "Rückruf.", pt: "retorno.", ar: "اتصال.", zh: "回调。", ja: "コールバック。" },
+  "hero.sub": { en: "Real examples for 20+ professions, country-by-country CV rules, and an ATS engine that scores every draft before a robot does.", hi: "20+ पेशों के लिए वास्तविक उदाहरण, देश-दर-देश CV नियम, और एक ATS इंजन जो हर मसौदे को स्कोर करता है।", es: "Ejemplos reales para 20+ profesiones, reglas de CV por país y un motor ATS que califica cada borrador.", fr: "De vrais exemples pour 20+ professions, règles de CV par pays et un moteur ATS qui note chaque brouillon.", de: "Echte Beispiele für 20+ Berufe, CV-Regeln pro Land und eine ATS-Engine, die jeden Entwurf bewertet.", pt: "Exemplos reais para 20+ profissões, regras de CV por país e um mecanismo ATS que pontua cada rascunho.", ar: "أمثلة حقيقية لـ 20+ مهنة، قواعد السيرة الذاتية حسب البلد، ومحرك ATS يقيم كل مسودة.", zh: "20+ 职业的真实示例，各国 CV 规则，以及 ATS 引擎在机器人之前评分每个草稿。", ja: "20+ の職業の実例、国別の CV ルール、および各草案を評価する ATS エンジン。" },
+  "hero.cta2": { en: "Browse example resumes", hi: "उदाहरण रिज़्यूम देखें", es: "Ver ejemplos de currículums", fr: "Parcourir les exemples de CV", de: "Beispiel-Lebensläufe durchsuchen", pt: "Navegar por exemplos de currículo", ar: "تصفح أمثلة السير الذاتية", zh: "浏览示例简历", ja: "履歴書の例を閲覧" },
+  "cta.start": { en: "Start free — no sign-up", hi: "मुफ्त शुरू करें — कोई साइनअप नहीं", es: "Comienza gratis — sin registro", fr: "Commencez gratuitement — sans inscription", de: "Kostenlos starten — keine Anmeldung", pt: "Comece grátis — sem cadastro", ar: "ابدأ مجاناً — بدون تسجيل", zh: "免费开始 - 无需注册", ja: "無料で開始 — サインアップ不要" },
 };
 interface I18nCtx { lang: Lang; setLang: (l: Lang) => void; t: (k: string) => string }
 const I18nContext = createContext<I18nCtx>({ lang: "en", setLang: () => {}, t: (k) => DICT[k]?.en ?? k });

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import { AppProviders } from "./store/AppStore";
 import Home from "./pages/Home";
@@ -24,6 +24,9 @@ const host = typeof window !== "undefined" ? window.location.hostname : "";
 const useCleanUrls = host === "localhost" || host === "127.0.0.1" || host.endsWith("vercel.app");
 const Router = useCleanUrls ? BrowserRouter : HashRouter;
 
+// Country-specific routes for programmatic SEO and localized experience
+const COUNTRY_CODES = ["us", "gb", "ca", "au", "de", "fr", "nl", "es", "ae", "sa", "pk", "in", "sg", "jp", "za", "br"];
+
 export default function App() {
   return (
     <AppProviders>
@@ -33,6 +36,15 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/builder" element={<Builder />} />
+            
+            {/* Country-specific routes for localized SEO */}
+            {COUNTRY_CODES.map((code) => (
+              <Route key={code} path={`/${code}`} element={<Navigate to={`/countries/${code}`} replace />} />
+            ))}
+            {COUNTRY_CODES.map((code) => (
+              <Route key={code} path={`/${code}/cv-resume`} element={<Navigate to={`/countries/${code}`} replace />} />
+            ))}
+            
             <Route path="/examples" element={<ExamplesIndex />} />
             <Route path="/examples/:slug" element={<ExamplePage />} />
             <Route path="/countries" element={<CountriesIndex />} />

@@ -107,4 +107,11 @@ body {
   body.printing #print-root { display: block !important; }
   body.printing { background: #fff; }
   .resume-sheet { box-shadow: none !important; width: 210mm; min-height: 296mm; }
+  
+  /* Ensure colors and backgrounds print correctly */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
+
+/* RTL support for Arabic */
+[dir="rtl"] { direction: rtl; text-align: right; }
+[dir="rtl"] .resume-sheet { direction: rtl; text-align: right; }

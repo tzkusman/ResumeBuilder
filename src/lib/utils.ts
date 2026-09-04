@@ -99,14 +99,127 @@ export function resumeToText(r: ResumeData): string {
   return lines.join("\n");
 }
 
-export function resumeToHtml(r: ResumeData): string {
+export function resumeToHtml(r: ResumeData, forDocx = false): string {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const c = r.contact;
+  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).map(esc).join("  |  ");
+  
+  // Template-specific styles
+  const templateStyles: Record<string, string> = {
+    merit: `
+      h1 { font-family: 'Georgia', serif; font-size: 24pt; margin: 0; color: #181d1a; }
+      h2 { font-family: 'Courier New', monospace; font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.24em; color: ${r.accent}; border-bottom: 2px solid ${r.accent}; padding-bottom: 4pt; margin-top: 18pt; }
+      .title { color: ${r.accent}; font-weight: 600; }
+      .contact { font-size: 9pt; color: #555; }
+      li { margin-left: 12pt; }
+    `,
+    atlas: `
+      h1 { font-family: 'Arial Black', sans-serif; font-size: 22pt; margin: 0; text-transform: uppercase; letter-spacing: -0.02em; }
+      h2 { font-family: 'Courier New', monospace; font-size: 9.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.26em; border-bottom: 1px solid #d0d0d0; padding-bottom: 3pt; }
+      .title { color: ${r.accent}; font-weight: 600; font-size: 11pt; }
+      .contact { font-size: 9pt; color: #555; gap: 12pt; }
+      .top-bar { height: 12pt; background: ${r.accent}; margin-bottom: 18pt; }
+      li { margin-left: 0; }
+    `,
+    craft: `
+      h1 { font-family: 'Georgia', serif; font-size: 28pt; margin: 0; text-align: center; }
+      h2 { font-family: 'Georgia', serif; font-size: 14pt; font-weight: bold; text-align: center; border-bottom: 2px solid ${r.accent}; padding-bottom: 4pt; margin: 18pt auto; max-width: 400px; }
+      .title { color: ${r.accent}; font-weight: 600; font-size: 11pt; text-align: center; margin-top: 8pt; }
+      .contact { font-size: 9pt; color: #555; justify-content: center; }
+      li { margin-left: 18pt; }
+      .section-content { max-width: 450pt; margin: 0 auto; text-align: left; }
+    `,
+    ledger: `
+      .container { display: flex; }
+      .sidebar { width: 180pt; background: ${r.accent}; color: white; padding: 30pt 18pt; }
+      .main { flex: 1; padding: 30pt 24pt; }
+      h1 { font-family: 'Arial Black', sans-serif; font-size: 22pt; margin: 0; line-height: 1.1; color: white; }
+      .sidebar h2 { font-family: 'Courier New', monospace; font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.22em; opacity: 0.8; margin-top: 27pt; color: white; border-bottom: none; }
+      .sidebar p { font-size: 9.5pt; line-height: 1.6; }
+      .main h2 { font-family: 'Courier New', monospace; font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.24em; color: ${r.accent}; border-bottom: none; }
+      .title { color: white; font-weight: 600; font-size: 11pt; opacity: 0.95; }
+      .contact { font-size: 9pt; opacity: 0.95; line-height: 1.6; }
+      .role { font-size: 11.5pt; font-weight: bold; }
+      .company { color: ${r.accent}; font-weight: 600; }
+      li { margin-left: 0; font-size: 10.5pt; }
+    `
+  };
+  
+  const isLedger = r.template === "ledger";
+  const isCraft = r.template === "craft";
+  const isAtlas = r.template === "atlas";
+  
+  if (forDocx) {
+    // Enhanced DOCX format with full styling
+    return `<html xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+<meta charset="utf-8">
+<title>${esc(c.fullName)} — Resume</title>
+<style>
+body { font-family: Calibri, Arial, sans-serif; color: #181d1a; font-size: 11pt; line-height: 1.45; max-width: 650pt; margin: 0 auto; }
+${templateStyles[r.template]}
+.contact { display: flex; flex-wrap: wrap; }
+.role-line { display: flex; justify-content: space-between; align-items: baseline; margin: 14pt 0 4pt; }
+.date { font-family: 'Courier New', monospace; font-size: 9pt; color: #666; }
+.bullet-list { list-style: none; padding: 0; }
+.bullet-list li { position: relative; padding-left: 14pt; margin: 3pt 0; }
+.bullet-list li::before { content: "•"; position: absolute; left: 0; color: ${r.accent}; font-weight: bold; }
+</style>
+</head>
+<body>
+${isAtlas ? `<div class="top-bar"></div>` : ""}
+${isLedger ? `
+<div class="container">
+<div class="sidebar">
+<p style="font-family:'Courier New',monospace;font-size:9pt;text-transform:uppercase;letter-spacing:0.2em;opacity:0.8;margin:0">Curriculum Vitae</p>
+<h1>${esc(c.fullName)}</h1>
+<p class="title">${esc(c.title)}</p>
+<p class="contact" style="display:block;margin-top:24pt">${[c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).map(esc).join("<br/>")}</p>
+${r.skills.length ? `<h2>Skills</h2><p>${r.skills.map(esc).join("<br/>")}</p>` : ""}
+${r.education.some(e => e.degree) ? `<h2>Education</h2>${r.education.map(e => `<p><b>${esc(e.degree)}</b><br/>${esc(e.school)} ${esc(e.year)}</p>`).join("")}` : ""}
+${r.certifications.length ? `<h2>Certifications</h2><p>${r.certifications.map(esc).join("<br/>")}</p>` : ""}
+</div>
+<div class="main">
+` : ""}
+
+${!isLedger && !isCraft ? `<h1>${esc(c.fullName)}</h1>` : ""}
+${!isLedger ? `<p class="title">${esc(c.title)}</p>` : ""}
+${!isLedger ? `<p class="contact">${contactLine}</p>` : ""}
+
+${r.summary ? (!isLedger ? `<h2>Professional Summary</h2><p>${esc(r.summary)}</p>` : `<h2>Profile</h2><p>${esc(r.summary)}</p>`) : ""}
+
+<h2>Experience</h2>
+${r.experience.filter(e => e.role).map((e) => `
+<div class="role-block" style="margin-bottom:18pt">
+<div class="role-line">
+<span class="role"><b>${esc(e.role)}</b>${e.company ? `<span class="company"> — ${esc(e.company)}</span>` : ""}${e.location ? `<span style="color:#666;font-weight:normal"> · ${esc(e.location)}</span>` : ""}</span>
+${!isCraft ? `<span class="date">${esc(e.start)} – ${esc(e.end)}</span>` : ""}
+</div>
+${isCraft && (e.start || e.end) ? `<p style="text-align:center;font-family:'Courier New',monospace;font-size:9pt;color:#666">${esc(e.start)} – ${esc(e.end)}</p>` : ""}
+<ul class="bullet-list">
+${e.bullets.filter(Boolean).map((b) => `<li>${esc(b)}</li>`).join("")}
+</ul>
+</div>
+`).join("")}
+
+${r.education.some(e => e.degree) && !isLedger ? `<h2>Education</h2>${r.education.map((e) => `<p style="display:flex;justify-content:space-between;margin:6pt 0"><span><b>${esc(e.degree)}</b> — ${esc(e.school)}${e.location ? `, ${esc(e.location)}` : ""}</span><span style="font-family:'Courier New',monospace;font-size:9pt;color:#666">${esc(e.year)}</span></p>`).join("")}` : ""}
+
+${r.skills.length && !isLedger ? `<h2>Skills</h2><p>${isAtlas ? r.skills.map(esc).join("  ·  ") : r.skills.map(esc).join(", ")}</p>` : ""}
+
+${r.certifications.length && !isLedger ? `<h2>Certifications</h2><p>${r.certifications.map(esc).join("; ")}</p>` : ""}
+
+${r.languages.length ? `<h2>Languages</h2><p>${r.languages.map(esc).join(", ")}</p>` : ""}
+
+${isLedger ? `</div></div>` : ""}
+</body></html>`;
+  }
+  
+  // Original simple HTML for fallback
   return `<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${esc(c.fullName)} — Resume</title></head>
 <body style="font-family:Calibri,Arial,sans-serif;color:#181d1a;font-size:11pt;line-height:1.45">
 <h1 style="font-size:20pt;margin:0">${esc(c.fullName)}</h1>
 <p style="margin:2pt 0;color:#444">${esc(c.title)}</p>
-<p style="margin:2pt 0;color:#555;font-size:10pt">${[c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).map(esc).join("  |  ")}</p>
+<p style="margin:2pt 0;color:#555;font-size:10pt">${contactLine}</p>
 ${r.summary ? `<h2 style="font-size:12pt;border-bottom:1pt solid #999;padding-bottom:2pt">PROFESSIONAL SUMMARY</h2><p>${esc(r.summary)}</p>` : ""}
 <h2 style="font-size:12pt;border-bottom:1pt solid #999;padding-bottom:2pt">EXPERIENCE</h2>
 ${r.experience.map((e) => `<p style="margin:8pt 0 2pt"><b>${esc(e.role)}</b> — ${esc(e.company)}${e.location ? ", " + esc(e.location) : ""}<br/><i>${esc(e.start)} – ${esc(e.end)}</i></p><ul>${e.bullets.filter(Boolean).map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`).join("")}
@@ -129,7 +242,7 @@ export function downloadBlob(content: string, filename: string, type: string) {
 }
 
 export function downloadDocx(r: ResumeData) {
-  downloadBlob(resumeToHtml(r), `${slugify(r.contact.fullName || "resume")}.doc`, "application/msword");
+  downloadBlob(resumeToHtml(r, true), `${slugify(r.contact.fullName || "resume")}.doc`, "application/msword");
 }
 
 export function downloadTxt(r: ResumeData) {

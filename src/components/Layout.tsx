@@ -31,6 +31,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: "/examples", label: t("nav.examples") },
     { to: "/countries", label: t("nav.countries") },
     { to: "/templates", label: t("nav.templates") },
+    { to: "/ats-checker", label: "ATS Checker" },
     { to: "/cover-letter", label: t("nav.cover") },
     { to: "/pricing", label: t("nav.pricing") },
   ];

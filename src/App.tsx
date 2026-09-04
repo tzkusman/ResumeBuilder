@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import { AppProviders } from "./store/AppStore";
 import Home from "./pages/Home";
 import Builder from "./pages/Builder";
+import ATSChecker from "./pages/ATSChecker";
 import { ExamplesIndex, ExamplePage } from "./pages/Examples";
 import { CountriesIndex, CountryPage } from "./pages/Countries";
 import { TemplatesPage, CoverLetterPage, PricingPage, AuthPage, SharedPage, LegalPage, NotFoundPage } from "./pages/Misc";
@@ -36,6 +37,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/builder" element={<Builder />} />
+            <Route path="/ats-checker" element={<ATSChecker />} />
             
             {/* Country-specific routes for localized SEO */}
             {COUNTRY_CODES.map((code) => (

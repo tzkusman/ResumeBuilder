@@ -1,8 +1,8 @@
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Initialize PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+// Initialize PDF.js worker with compatible version (v3.11.174)
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 export interface ATSAnalysis {
   score: number;
@@ -126,23 +126,74 @@ export async function parseDocxFile(file: File): Promise<{ text: string; rawHtml
 export async function parsePdfFile(file: File): Promise<{ text: string }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+    
+    // Use Uint8Array for better compatibility
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Load PDF document with additional options for better compatibility
+    const loadingTask = pdfjsLib.getDocument({
+      data: uint8Array,
+      useSystemFonts: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      verbosity: 0, // Suppress warnings
+      disableFontFace: false,
+      enableXfa: true // Enable XFA forms support
+    });
+    
+    const pdf = await loadingTask.promise;
     
     let fullText = '';
     
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
+      
+      // Get text content with improved extraction
       const textContent = await page.getTextContent();
+      
+      // Extract text items and preserve spacing
       const pageText = textContent.items
-        .map((item: any) => item.str)
+        .map((item: any) => {
+          const str = item.str;
+          // Handle common PDF encoding issues
+          if (str && typeof str === 'string') {
+            return str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+          }
+          return '';
+        })
+        .filter(s => s.length > 0)
         .join(' ');
-      fullText += pageText + '\n';
+      
+      fullText += pageText + '\n\n';
+    }
+    
+    // Clean up extracted text
+    fullText = fullText
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n\n')
+      .trim();
+    
+    // Check if we got meaningful text
+    if (fullText.length < 50) {
+      throw new Error('PDF appears to be image-based or scanned. Please use a text-based PDF or convert images to text first.');
     }
     
     return { text: fullText };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing PDF:', error);
-    throw new Error('Failed to parse PDF file. This PDF may be image-based or encrypted.');
+    
+    // Provide more helpful error messages
+    if (error.message?.includes('password')) {
+      throw new Error('This PDF is password-protected. Please unlock it before uploading.');
+    }
+    if (error.message?.includes('Invalid') || error.message?.includes('corrupt')) {
+      throw new Error('This PDF file appears to be corrupted. Please try re-exporting it.');
+    }
+    if (error.name === 'UnknownErrorException') {
+      throw new Error('Failed to parse PDF. This may be an image-based/scanned PDF. Please convert to text format first.');
+    }
+    
+    throw new Error('Failed to parse PDF file. This PDF may be image-based, encrypted, or corrupted. Try converting to DOCX format.');
   }
 }
 

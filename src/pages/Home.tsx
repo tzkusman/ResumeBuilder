@@ -176,7 +176,7 @@ function AtsSection() {
             </ul>
           </Reveal>
           <Reveal delay={320}>
-            <Link to="/builder" className="hs-sm mt-9 inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
+            <Link to="/ats-checker" className="hs-sm mt-9 inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
               Score my resume free <Icon name="arrow" size={17} />
             </Link>
           </Reveal>

@@ -41,6 +41,7 @@ function Hero() {
   const typed = useTypewriter(ROTATING);
   const sample = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const atsFileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
 
@@ -141,7 +142,7 @@ function Hero() {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{t("hero.sub")}</p>
           </Reveal>
           <Reveal delay={260}>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
               <Link
                 to="/builder"
                 onClick={() => track("cta_click", { label: "home_hero_builder" })}
@@ -154,7 +155,7 @@ function Hero() {
               </Link>
               {/* Import PDF Button */}
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => atsFileInputRef.current?.click()}
                 disabled={isImporting}
                 className="group inline-flex items-center gap-2 border-2 border-ink px-4 py-3.5 text-base font-bold transition-all hover:bg-card hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -171,9 +172,9 @@ function Hero() {
                 )}
               </button>
               <input
-                ref={fileInputRef}
+                ref={atsFileInputRef}
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.docx,.doc"
                 onChange={handlePdfImport}
                 className="hidden"
               />
@@ -288,38 +289,38 @@ function AtsSection() {
             </ul>
           </Reveal>
           <Reveal delay={320}>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link to="/ats-checker" className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <Link to="/ats-checker" className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5">
                 Score my resume free <Icon name="arrow" size={17} />
               </Link>
-              {/* Import CV Dropdown Button */}
-              <div className="relative">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isImporting}
-                  className="group inline-flex items-center gap-2 border-2 border-ink bg-card px-5 py-3 font-bold transition-all hover:-translate-y-0.5 hover:shadow-[6px_8px_0_0_var(--color-ink)] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isImporting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-ink"></div>
-                      Importing...
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="upload" size={18} />
-                      Import CV
-                      <Icon name="chev" size={14} className="transition-transform group-hover:translate-y-0.5" />
-                    </>
-                  )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc"
-                  onChange={handlePdfImport}
-                  className="hidden"
-                />
-              </div>
+              {/* Import CV Button - same design as Score button */}
+              <button
+                onClick={() => atsFileInputRef.current?.click()}
+                disabled={isImporting}
+                className="hs-sm inline-flex items-center gap-2.5 border-2 border-ink bg-card px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-ink"></div>
+                    <span className="hidden sm:inline">Importing...</span>
+                    <span className="sm:hidden">Import...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="upload" size={16} className="sm:size-[18]" />
+                    <span className="hidden sm:inline">Import CV</span>
+                    <span className="sm:hidden">Import</span>
+                    <Icon name="chev" size={12} className="hidden sm:block transition-transform group-hover:translate-y-0.5" />
+                  </>
+                )}
+              </button>
+              <input
+                ref={atsFileInputRef}
+                type="file"
+                accept=".pdf,.docx,.doc"
+                onChange={handlePdfImport}
+                className="hidden"
+              />
             </div>
           </Reveal>
         </div>

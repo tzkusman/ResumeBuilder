@@ -1,16 +1,25 @@
 ```
+# Build artifacts
+dist/
+build/
+*.css
+*.js
+
 # Dependencies
 node_modules/
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# Logs and temp files
-*.log
+# Cache and temporary files
+__pycache__/
+*.pyc
 *.tmp
+*.log
 
 # Editors
 .vscode/
+.idea/
 ```

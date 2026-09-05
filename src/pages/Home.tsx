@@ -153,31 +153,6 @@ function Hero() {
               <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine">
                 {t("hero.cta2")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
               </Link>
-              {/* Import PDF Button */}
-              <button
-                onClick={() => atsFileInputRef.current?.click()}
-                disabled={isImporting}
-                className="group inline-flex items-center gap-2 border-2 border-ink px-4 py-3.5 text-base font-bold transition-all hover:bg-card hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isImporting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-ink"></div>
-                    Importing...
-                  </>
-                ) : (
-                  <>
-                    <Icon name="upload" size={18} />
-                    Import PDF
-                  </>
-                )}
-              </button>
-              <input
-                ref={atsFileInputRef}
-                type="file"
-                accept=".pdf,.docx,.doc"
-                onChange={handlePdfImport}
-                className="hidden"
-              />
             </div>
           </Reveal>
           <Reveal delay={340}>
@@ -255,7 +230,15 @@ function Ticker() {
   );
 }
 
-function AtsSection() {
+function AtsSection({ 
+  atsFileInputRef, 
+  isImporting, 
+  handlePdfImport 
+}: { 
+  atsFileInputRef: React.RefObject<HTMLInputElement>; 
+  isImporting: boolean; 
+  handlePdfImport: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>; 
+}) {
   return (
     <section className="border-b-2 border-ink bg-pine-deep text-paper">
       <div className="dotgrid-dark mx-auto grid max-w-7xl items-center gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2">
@@ -501,7 +484,11 @@ export default function Home() {
       />
       <Hero />
       <Ticker />
-      <AtsSection />
+      <AtsSection 
+        atsFileInputRef={fileInputRef}
+        isImporting={isImporting}
+        handlePdfImport={handlePdfImport}
+      />
       <ExamplesIndex />
       <CountriesStrip />
       <HowItWorks />

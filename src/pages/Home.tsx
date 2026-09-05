@@ -36,85 +36,11 @@ function useTypewriter(words: string[], speed = 85, hold = 2100) {
   return text;
 }
 
-function Hero() {
+function Hero({ importSuccess }: { importSuccess: boolean }) {
   const { t } = useI18n();
   const typed = useTypewriter(ROTATING);
   const sample = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const atsFileInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importSuccess, setImportSuccess] = useState(false);
-
-  const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
-
-    // Validate file type - support PDF and DOCX
-    const isPdf = uploadedFile.name.endsWith('.pdf');
-    const isDocx = uploadedFile.name.endsWith('.docx') || uploadedFile.name.endsWith('.doc');
-    
-    if (!isPdf && !isDocx) {
-      alert('Please upload a PDF or DOCX file');
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      let text = '';
-      
-      if (isPdf) {
-        // Parse PDF file
-        const result = await parsePdfFile(uploadedFile);
-        text = result.text;
-      } else {
-        // For DOCX files, we'll need to read as text (basic support)
-        // In production, you'd use a library like mammoth.js for proper DOCX parsing
-        text = await uploadedFile.text();
-        // Basic cleanup for DOCX text
-        text = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-      
-      // Parse CV into structured resume data
-      const parsed = parseCVToResume(text);
-      
-      // Get existing resume from localStorage or create new one
-      const existingResumeStr = localStorage.getItem('rb_resume_v1');
-      const existingResume: ResumeData | null = existingResumeStr ? JSON.parse(existingResumeStr) : null;
-      
-      // Create empty resume as fallback
-      const emptyResume: ResumeData = {
-        id: Math.random().toString(36).slice(2, 10),
-        roleSlug: null,
-        contact: { fullName: '', title: '', email: '', phone: '', location: '', website: '', linkedin: '' },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: [],
-        languages: [],
-        certifications: [],
-        template: 'merit',
-        accent: '#17594a'
-      };
-      
-      // Merge parsed data with existing or empty resume
-      const merged = mergeCVWithResume(parsed, existingResume || emptyResume);
-      
-      // Save to localStorage
-      localStorage.setItem('rb_resume_v1', JSON.stringify(merged));
-      
-      // Show success message
-      setImportSuccess(true);
-      setTimeout(() => setImportSuccess(false), 5000);
-      
-      // Redirect to builder
-      window.location.href = '/builder';
-    } catch (err) {
-      console.error('Import error:', err);
-      alert('Failed to import CV. Please try again.');
-    } finally {
-      setIsImporting(false);
-    }
-  };
 
   return (
     <section className="dotgrid relative overflow-hidden border-b-2 border-ink">

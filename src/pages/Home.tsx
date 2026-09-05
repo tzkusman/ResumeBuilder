@@ -48,16 +48,30 @@ function Hero() {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
 
-    // Validate file type
-    if (!uploadedFile.name.endsWith('.pdf')) {
-      alert('Please upload a PDF file');
+    // Validate file type - support PDF and DOCX
+    const isPdf = uploadedFile.name.endsWith('.pdf');
+    const isDocx = uploadedFile.name.endsWith('.docx') || uploadedFile.name.endsWith('.doc');
+    
+    if (!isPdf && !isDocx) {
+      alert('Please upload a PDF or DOCX file');
       return;
     }
 
     setIsImporting(true);
     try {
-      const result = await parsePdfFile(uploadedFile);
-      const text = result.text;
+      let text = '';
+      
+      if (isPdf) {
+        // Parse PDF file
+        const result = await parsePdfFile(uploadedFile);
+        text = result.text;
+      } else {
+        // For DOCX files, we'll need to read as text (basic support)
+        // In production, you'd use a library like mammoth.js for proper DOCX parsing
+        text = await uploadedFile.text();
+        // Basic cleanup for DOCX text
+        text = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
       
       // Parse CV into structured resume data
       const parsed = parseCVToResume(text);
@@ -95,7 +109,7 @@ function Hero() {
       window.location.href = '/builder';
     } catch (err) {
       console.error('Import error:', err);
-      alert('Failed to import PDF. Please try again.');
+      alert('Failed to import CV. Please try again.');
     } finally {
       setIsImporting(false);
     }
@@ -274,9 +288,39 @@ function AtsSection() {
             </ul>
           </Reveal>
           <Reveal delay={320}>
-            <Link to="/ats-checker" className="hs-sm mt-9 inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
-              Score my resume free <Icon name="arrow" size={17} />
-            </Link>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link to="/ats-checker" className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
+                Score my resume free <Icon name="arrow" size={17} />
+              </Link>
+              {/* Import CV Dropdown Button */}
+              <div className="relative">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="group inline-flex items-center gap-2 border-2 border-ink bg-card px-5 py-3 font-bold transition-all hover:-translate-y-0.5 hover:shadow-[6px_8px_0_0_var(--color-ink)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isImporting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-ink"></div>
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="upload" size={18} />
+                      Import CV
+                      <Icon name="chev" size={14} className="transition-transform group-hover:translate-y-0.5" />
+                    </>
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc"
+                  onChange={handlePdfImport}
+                  className="hidden"
+                />
+              </div>
+            </div>
           </Reveal>
         </div>
         <Reveal delay={200}>

@@ -15,6 +15,17 @@ const TEMPLATES: { id: TemplateId; name: string; note: string }[] = [
   { id: "atlas", name: "Atlas", note: "Compact · modern bar" },
   { id: "ledger", name: "Ledger", note: "Sidebar · visual" },
   { id: "craft", name: "Craft", note: "Serif · centered header" },
+  { id: "modern", name: "Modern", note: "Clean · contemporary" },
+  { id: "classic", name: "Classic", note: "Traditional · timeless" },
+  { id: "elegant", name: "Elegant", note: "Sophisticated · refined" },
+  { id: "professional", name: "Professional", note: "Business · formal" },
+  { id: "minimal", name: "Minimal", note: "Simple · focused" },
+  { id: "bold", name: "Bold", note: "Strong · impactful" },
+  { id: "creative", name: "Creative", note: "Artistic · unique" },
+  { id: "executive", name: "Executive", note: "Leadership · senior" },
+  { id: "academic", name: "Academic", note: "Research · education" },
+  { id: "tech", name: "Tech", note: "Startup · innovative" },
+  { id: "corporate", name: "Corporate", note: "Enterprise · structured" },
 ];
 
 const inputCls = "w-full border border-ink/25 bg-white px-3 py-2 text-sm transition-colors placeholder:text-ink-soft/50 focus:border-pine focus:outline-none";

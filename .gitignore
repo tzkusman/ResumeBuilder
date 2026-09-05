@@ -2,24 +2,43 @@
 # Build artifacts
 dist/
 build/
-*.css
-*.js
+*.o
+*.obj
+*.out
 
 # Dependencies
 node_modules/
+vendor/
+
+# Logs and temp files
+*.log
+*.tmp
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Cache and temporary files
-__pycache__/
-*.pyc
-*.tmp
-*.log
-
 # Editors
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# OS generated files
+.DS_Store
+Thumbs.db
 ```

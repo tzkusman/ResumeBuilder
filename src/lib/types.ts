@@ -40,7 +40,7 @@ export interface Education extends EduEntry {
   graduationYear?: string;
 }
 
-export type TemplateId = "merit" | "ledger" | "atlas" | "craft";
+export type TemplateId = "merit" | "ledger" | "atlas" | "craft" | "modern" | "classic" | "elegant" | "professional" | "minimal" | "bold" | "creative" | "executive" | "academic" | "tech" | "corporate";
 
 export interface ResumeData {
   id: string;

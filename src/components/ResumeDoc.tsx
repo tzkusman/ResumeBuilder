@@ -1,7 +1,7 @@
 import type { ResumeData } from "../lib/types";
 
 /**
- * Renders the resume as a 794×1123 A4 sheet in one of four templates.
+ * Renders the resume as a 794×1123 A4 sheet in one of fifteen templates.
  * "merit", "atlas", "craft" are ATS-safe single column; "ledger" uses a
  * sidebar (flagged by the ATS engine as a parsing risk).
  */
@@ -11,6 +11,7 @@ export default function ResumeDoc({ data }: { data: ResumeData }) {
   const edu = data.education.filter((e) => e.degree || e.school);
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean);
 
+  // Ledger template (sidebar)
   if (data.template === "ledger") {
     return (
       <div className="resume-sheet flex overflow-hidden">
@@ -68,6 +69,29 @@ export default function ResumeDoc({ data }: { data: ResumeData }) {
 
   const craft = data.template === "craft";
   const atlas = data.template === "atlas";
+  
+  // Modern template
+  const modern = data.template === "modern";
+  // Classic template
+  const classic = data.template === "classic";
+  // Elegant template
+  const elegant = data.template === "elegant";
+  // Professional template
+  const professional = data.template === "professional";
+  // Minimal template
+  const minimal = data.template === "minimal";
+  // Bold template
+  const bold = data.template === "bold";
+  // Creative template
+  const creative = data.template === "creative";
+  // Executive template
+  const executive = data.template === "executive";
+  // Academic template
+  const academic = data.template === "academic";
+  // Tech template
+  const tech = data.template === "tech";
+  // Corporate template
+  const corporate = data.template === "corporate";
 
   return (
     <div className={`resume-sheet px-12 ${craft ? "py-14 text-center" : atlas ? "py-9" : "py-11"}`}>

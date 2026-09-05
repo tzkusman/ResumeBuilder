@@ -2,13 +2,9 @@
 # Build artifacts
 dist/
 build/
-*.o
-*.obj
-*.out
 
 # Dependencies
 node_modules/
-vendor/
 
 # Logs and temp files
 *.log
@@ -22,23 +18,52 @@ vendor/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
-# Python specific
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
 
-# Coverage reports
+# Compiled files
+*.o
+*.obj
+*.so
+*.a
+*.dll
+*.exe
+*.out
+
+# Compression
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+
+# Coverage
 coverage/
 htmlcov/
 .coverage
 
-# OS generated files
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# OS
 .DS_Store
 Thumbs.db
 ```

@@ -68,15 +68,15 @@ function Hero({ importSuccess }: { importSuccess: boolean }) {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{t("hero.sub")}</p>
           </Reveal>
           <Reveal delay={260}>
-            <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="mt-8 flex flex-col items-stretch sm:flex-row sm:items-center gap-3 sm:gap-4">
               <Link
                 to="/builder"
                 onClick={() => track("cta_click", { label: "home_hero_builder" })}
-                className="hs group inline-flex items-center gap-2.5 border-2 border-ink bg-acid px-6 py-3.5 text-base font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[6px_8px_0_0_var(--color-ink)] active:translate-y-0"
+                className="hs group inline-flex items-center justify-center gap-2.5 border-2 border-ink bg-acid px-6 py-3.5 text-base font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[6px_8px_0_0_var(--color-ink)] active:translate-y-0 w-full sm:w-auto"
               >
                 {t("cta.start")} <Icon name="arrow" size={18} className="transition-transform group-hover:translate-x-1" />
               </Link>
-              <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine">
+              <Link to="/examples" className="group inline-flex items-center justify-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine w-full sm:w-auto">
                 {t("hero.cta2")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
@@ -198,15 +198,15 @@ function AtsSection({
             </ul>
           </Reveal>
           <Reveal delay={320}>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link to="/ats-checker" className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5">
+            <div className="flex flex-col items-stretch sm:flex-row sm:items-center gap-3 sm:gap-4">
+              <Link to="/ats-checker" className="hs-sm inline-flex items-center justify-center gap-2.5 border-2 border-acid bg-acid px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5 w-full sm:w-auto">
                 Score my resume free <Icon name="arrow" size={17} />
               </Link>
               {/* Import CV Button - same design as Score button */}
               <button
                 onClick={() => atsFileInputRef.current?.click()}
                 disabled={isImporting}
-                className="hs-sm inline-flex items-center gap-2.5 border-2 border-ink bg-card px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="hs-sm inline-flex items-center justify-center gap-2.5 border-2 border-ink bg-card px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 {isImporting ? (
                   <>
@@ -265,13 +265,13 @@ function AtsSection({
 function ExamplesIndex() {
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div>
           <Reveal><Kicker className="text-pine">Programmatic, not generic</Kicker></Reveal>
           <Reveal delay={80}><h2 className="mt-3 font-display text-4xl font-black tracking-tight sm:text-5xl">Real examples for real jobs.</h2></Reveal>
         </div>
         <Reveal delay={160}>
-          <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink pb-1 font-bold hover:border-pine hover:text-pine">
+          <Link to="/examples" className="group inline-flex items-center justify-center gap-2 border-b-2 border-ink pb-1 font-bold hover:border-pine hover:text-pine w-full sm:w-auto">
             Browse all 20 examples <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </Reveal>
@@ -300,7 +300,7 @@ function CountriesStrip() {
   return (
     <section className="border-y-2 border-ink bg-card">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <Reveal><Kicker className="text-pine">Localized experience</Kicker></Reveal>
             <Reveal delay={80}><h2 className="mt-3 font-display text-3xl font-black sm:text-4xl">CV rules change at every border.</h2></Reveal>

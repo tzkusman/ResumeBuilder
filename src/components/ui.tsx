@@ -26,6 +26,7 @@ const PATHS: Record<string, ReactNode> = {
   gauge: <><path d="M4 18a9 9 0 1 1 16 0" strokeLinecap="round" /><path d="M12 18 16 11" strokeLinecap="round" /></>,
   flag: <path d="M5 21V4m0 1h13l-3 4 3 4H5" strokeLinecap="round" strokeLinejoin="round" />,
   external: <path d="M9 5H5v14h14v-4M14 4h6v6M20 4 11 13" strokeLinecap="round" strokeLinejoin="round" />,
+  upload: <path d="M12 16V4m0 0-4 4m4-4 4 4M4 20h16" strokeLinecap="round" strokeLinejoin="round" />,
 };
 
 export function Icon({ name, size = 18, className = "" }: { name: keyof typeof PATHS | string; size?: number; className?: string }) {

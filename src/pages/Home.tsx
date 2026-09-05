@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Icon, Reveal, Gauge, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
@@ -7,6 +7,9 @@ import { COUNTRIES } from "../data/countries";
 import { resumeFromProfession } from "../lib/types";
 import { useI18n } from "../store/AppStore";
 import { track } from "../lib/analytics";
+import { parsePdfFile } from "../lib/cv-analyzer";
+import { parseCVToResume, mergeCVWithResume } from "../lib/cv-parser";
+import type { ResumeData } from "../lib/types";
 
 const ROTATING = ["Registered Nurse", "Software Engineer", "Sales Manager", "Electrician", "Data Analyst", "Elementary Teacher"];
 
@@ -37,6 +40,66 @@ function Hero() {
   const { t } = useI18n();
   const typed = useTypewriter(ROTATING);
   const sample = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
+
+  const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFile = e.target.files?.[0];
+    if (!uploadedFile) return;
+
+    // Validate file type
+    if (!uploadedFile.name.endsWith('.pdf')) {
+      alert('Please upload a PDF file');
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const result = await parsePdfFile(uploadedFile);
+      const text = result.text;
+      
+      // Parse CV into structured resume data
+      const parsed = parseCVToResume(text);
+      
+      // Get existing resume from localStorage or create new one
+      const existingResumeStr = localStorage.getItem('rb_resume_v1');
+      const existingResume: ResumeData | null = existingResumeStr ? JSON.parse(existingResumeStr) : null;
+      
+      // Create empty resume as fallback
+      const emptyResume: ResumeData = {
+        id: Math.random().toString(36).slice(2, 10),
+        roleSlug: null,
+        contact: { fullName: '', title: '', email: '', phone: '', location: '', website: '', linkedin: '' },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        languages: [],
+        certifications: [],
+        template: 'merit',
+        accent: '#17594a'
+      };
+      
+      // Merge parsed data with existing or empty resume
+      const merged = mergeCVWithResume(parsed, existingResume || emptyResume);
+      
+      // Save to localStorage
+      localStorage.setItem('rb_resume_v1', JSON.stringify(merged));
+      
+      // Show success message
+      setImportSuccess(true);
+      setTimeout(() => setImportSuccess(false), 5000);
+      
+      // Redirect to builder
+      window.location.href = '/builder';
+    } catch (err) {
+      console.error('Import error:', err);
+      alert('Failed to import PDF. Please try again.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   return (
     <section className="dotgrid relative overflow-hidden border-b-2 border-ink">
@@ -75,6 +138,31 @@ function Hero() {
               <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine">
                 {t("hero.cta2")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
               </Link>
+              {/* Import PDF Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isImporting}
+                className="group inline-flex items-center gap-2 border-2 border-ink px-4 py-3.5 text-base font-bold transition-all hover:bg-card hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isImporting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-ink"></div>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="upload" size={18} />
+                    Import PDF
+                  </>
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={handlePdfImport}
+                className="hidden"
+              />
             </div>
           </Reveal>
           <Reveal delay={340}>
@@ -116,6 +204,16 @@ function Hero() {
           </div>
         </Reveal>
       </div>
+      {/* Import Success Toast */}
+      {importSuccess && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50">
+          <Icon name="check" size={24} />
+          <div>
+            <p className="font-semibold">Resume imported successfully!</p>
+            <p className="text-sm text-green-100">Redirecting to builder...</p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

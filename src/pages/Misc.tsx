@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon, Reveal, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
 import CoverLetterDoc from "../components/CoverLetterDoc";
-import { useResume, useAuth, useToast, PLANS, FREE_EXPORTS, type PlanId } from "../store/AppStore";
+import { useResume, useAuth, useToast, useI18n, PLANS, FREE_EXPORTS, type PlanId } from "../store/AppStore";
 import { ACCENTS, resumeFromProfession, type TemplateId } from "../lib/types";
 import { getProfession } from "../data/professions";
 import { decodeShare, downloadBlob, resumeToText, printPdf, downloadCoverLetterDocx } from "../lib/utils";
@@ -33,6 +33,7 @@ const TEMPLATE_META: { id: TemplateId; name: string; tag: string; desc: string }
 export function TemplatesPage() {
   const { resume, setResume } = useResume();
   const { toast } = useToast();
+  const { t } = useI18n();
   const sample = useMemo(() => {
     const s = resumeFromProfession(getProfession("marketing-manager")!);
     s.contact.fullName = resume.contact.fullName || s.contact.fullName;
@@ -50,31 +51,31 @@ export function TemplatesPage() {
       <Seo title="ATS-Safe Resume Templates — 4 Free Formats | ResumeBuild" description="Four resume templates engineered for parsing: Merit, Atlas, Ledger and Craft. Apply any template to your draft in one click and export free." path="/templates" />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-          <Reveal><Kicker className="text-pine">Form follows parsing</Kicker></Reveal>
-          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black sm:text-6xl">Templates that survive the robots.</h1></Reveal>
-          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">Every template below uses standard headings and real text — no tables, text boxes or icons where parsers choke. Apply one to your live draft instantly.</p></Reveal>
+          <Reveal><Kicker className="text-pine">{t("templates.kicker", "Form follows parsing")}</Kicker></Reveal>
+          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black sm:text-6xl">{t("templates.title", "Templates that survive the robots.")}</h1></Reveal>
+          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">{t("templates.sub", "Every template below uses standard headings and real text — no tables, text boxes or icons where parsers choke. Apply one to your live draft instantly.")}</p></Reveal>
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2">
-          {TEMPLATE_META.map((t, i) => (
-            <Reveal key={t.id} delay={(i % 2) * 100}>
-              <div className={`group flex h-full flex-col border-2 border-ink bg-card transition-all hover:-translate-y-1 ${resume.template === t.id ? "hs-acid" : "hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
+          {TEMPLATE_META.map((tMeta, i) => (
+            <Reveal key={tMeta.id} delay={(i % 2) * 100}>
+              <div className={`group flex h-full flex-col border-2 border-ink bg-card transition-all hover:-translate-y-1 ${resume.template === tMeta.id ? "hs-acid" : "hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
                 <div className="overflow-hidden border-b-2 border-ink bg-line/40 p-4">
                   <div className="mx-auto overflow-hidden border border-ink/25 bg-white transition-transform duration-300 group-hover:scale-[1.02]" style={{ width: 794 * 0.48, height: 1123 * 0.42 }}>
                     <div className="origin-top-left" style={{ transform: "scale(0.48)", width: 794 }}>
-                      <div style={{ height: 1123 * 0.88 }}><ResumeDoc data={{ ...sample, template: t.id, accent: ACCENTS[i % ACCENTS.length] }} /></div>
+                      <div style={{ height: 1123 * 0.88 }}><ResumeDoc data={{ ...sample, template: tMeta.id, accent: ACCENTS[i % ACCENTS.length] }} /></div>
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-display text-2xl font-black">{t.name}</h2>
-                    <Chip className={t.tag.includes("ATS-safe") || t.tag.includes("popular") ? "text-pine-deep" : "text-coral"}>{t.tag}</Chip>
+                    <h2 className="font-display text-2xl font-black">{tMeta.name}</h2>
+                    <Chip className={tMeta.tag.includes("ATS-safe") || tMeta.tag.includes("popular") ? "text-pine-deep" : "text-coral"}>{tMeta.tag}</Chip>
                   </div>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-soft">{t.desc}</p>
-                  <button onClick={() => pick(t.id)} className={`mt-4 inline-flex items-center justify-center gap-2 border-2 px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 ${resume.template === t.id ? "border-ink bg-ink text-acid" : "border-ink bg-acid text-ink"}`}>
-                    {resume.template === t.id ? "Applied to your draft" : "Use this template"} <Icon name={resume.template === t.id ? "check" : "arrow"} size={15} />
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-soft">{tMeta.desc}</p>
+                  <button onClick={() => pick(tMeta.id)} className={`mt-4 inline-flex items-center justify-center gap-2 border-2 px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 ${resume.template === tMeta.id ? "border-ink bg-ink text-acid" : "border-ink bg-acid text-ink"}`}>
+                    {resume.template === tMeta.id ? t("templates.applied", "Applied to your draft") : t("templates.use", "Use this template")} <Icon name={resume.template === tMeta.id ? "check" : "arrow"} size={15} />
                   </button>
                 </div>
               </div>
@@ -90,6 +91,7 @@ export function TemplatesPage() {
 export function CoverLetterPage() {
   const { resume, setResume } = useResume();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [company, setCompany] = useState("");
   const [role, setRole] = useState(resume.contact.title);
   const [manager, setManager] = useState("Hiring Manager");
@@ -169,16 +171,16 @@ What I'm looking for: ${company ? `roles like ${role || "my next challenge"} at 
     <>
       <Seo title="Free Cover Letter & LinkedIn About Generator — 15 Matching Templates | ResumeBuild" description="Generate a tailored cover letter and LinkedIn About matching any of our 15 resume templates with live A4 preview, PDF, DOCX, and TXT export." path="/cover-letter" />
       <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <Reveal><Kicker className="text-pine">15 Matching Cover Letter Templates</Kicker></Reveal>
+        <Reveal><Kicker className="text-pine">{t("cover.kicker", "15 Matching Cover Letter Templates")}</Kicker></Reveal>
         <Reveal delay={80}>
           <div className="flex flex-wrap items-end justify-between gap-5 mt-2">
             <div>
-              <h1 className="font-display text-4xl font-black sm:text-5xl">Cover letter matching your CV template.</h1>
-              <p className="mt-2 text-base text-ink-soft max-w-2xl">Generated directly from your experience and skills. Switch across all 15 designs with matching layout, header styles, and accent colors.</p>
+              <h1 className="font-display text-4xl font-black sm:text-5xl">{t("cover.title", "Cover letter matching your CV template.")}</h1>
+              <p className="mt-2 text-base text-ink-soft max-w-2xl">{t("cover.sub", "Generated directly from your experience and skills. Switch across all 15 designs with matching layout, header styles, and accent colors.")}</p>
             </div>
             <div className="flex border-2 border-ink">
-              <button onClick={() => setMode("letter")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "letter" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Cover letter</button>
-              <button onClick={() => setMode("about")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "about" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>LinkedIn About</button>
+              <button onClick={() => setMode("letter")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "letter" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>{t("cover.tabLetter", "Cover letter")}</button>
+              <button onClick={() => setMode("about")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "about" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>{t("cover.tabAbout", "LinkedIn About")}</button>
             </div>
           </div>
         </Reveal>
@@ -367,6 +369,7 @@ What I'm looking for: ${company ? `roles like ${role || "my next challenge"} at 
 export function PricingPage() {
   const { user, isPro, planName, planSince, downloadsUsed, freeExportsLeft, unlockPro, cancelPro } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [cycle, setCycle] = useState<"monthly" | "annual">("monthly");
   const [checkout, setCheckout] = useState<PlanId | null>(null);
   const [paying, setPaying] = useState(false);
@@ -454,18 +457,18 @@ export function PricingPage() {
       <Seo title="Pricing — 1 Free Export, Pro from $7/mo | ResumeBuild" description="Every account gets 1 free resume export. Pro unlocks unlimited PDF/DOCX/TXT downloads, unlimited JD tailoring and cloud sync for $7/mo, $49/yr or $79 lifetime." path="/pricing" />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-          <Reveal><Kicker className="text-pine">Pricing</Kicker></Reveal>
-          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] sm:text-6xl">Every account starts with <em className="text-pine">one free export.</em></h1></Reveal>
-          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">Sign up, download your resume, done — no card. Pro is for people applying seriously: unlimited exports, unlimited tailoring, synced everywhere.</p></Reveal>
+          <Reveal><Kicker className="text-pine">{t("pricing.kicker", "Pricing")}</Kicker></Reveal>
+          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] sm:text-6xl">{t("pricing.title", "Every account starts with one free export.")}</h1></Reveal>
+          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">{t("pricing.sub", "Sign up, download your resume, done — no card. Pro is for people applying seriously: unlimited exports, unlimited tailoring, synced everywhere.")}</p></Reveal>
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <Reveal>
           <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-soft">Pro billing:</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-ink-soft">{t("pricing.billing", "Pro billing:")}</span>
             <div className="flex border-2 border-ink">
-              <button onClick={() => setCycle("monthly")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "monthly" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Monthly</button>
-              <button onClick={() => setCycle("annual")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "annual" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Annual <span className="ml-1 bg-acid px-1.5 py-0.5 font-mono text-[9px] text-ink">−42%</span></button>
+              <button onClick={() => setCycle("monthly")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "monthly" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>{t("pricing.monthly", "Monthly")}</button>
+              <button onClick={() => setCycle("annual")} className={`px-4 py-2 text-sm font-bold transition-colors ${cycle === "annual" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>{t("pricing.annual", "Annual")} <span className="ml-1 bg-acid px-1.5 py-0.5 font-mono text-[9px] text-ink">−42%</span></button>
             </div>
           </div>
         </Reveal>
@@ -477,7 +480,7 @@ export function PricingPage() {
               <Reveal key={card.plan} delay={i * 100}>
                 <div className={`relative flex h-full flex-col border-2 p-6 transition-all hover:-translate-y-1 ${card.current ? "border-pine bg-acid-soft" : featured ? "border-ink bg-card hover:shadow-[6px_6px_0_0_var(--color-ink)]" : "border-ink bg-card hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
                   {card.badge && <span className="absolute -top-3 right-5 border-2 border-ink bg-acid px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest">{card.badge}</span>}
-                  {card.current && <span className="absolute -top-3 left-5 border-2 border-ink bg-pine px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-acid">Current plan</span>}
+                  {card.current && <span className="absolute -top-3 left-5 border-2 border-ink bg-pine px-2.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-acid">{t("pricing.currentPlan", "Current plan")}</span>}
                   <p className="kicker text-pine">{meta.name}</p>
                   <p className="mt-3 flex items-baseline gap-1">
                     <span className="font-display text-5xl font-black">${meta.price}</span>
@@ -511,14 +514,14 @@ export function PricingPage() {
                   <p className="font-mono text-[11px] text-ink-soft">{downloadsUsed} exports used · unlimited on Pro</p>
                 </div>
               </div>
-              <button onClick={() => { cancelPro(); toast("Back on the free plan — your 1 free export stays used.", "warn"); }} className="border-2 border-ink px-4 py-2 text-sm font-bold transition-all hover:bg-ink hover:text-acid">Cancel Pro</button>
+              <button onClick={() => { cancelPro(); toast("Back on the free plan — your 1 free export stays used.", "warn"); }} className="border-2 border-ink px-4 py-2 text-sm font-bold transition-all hover:bg-ink hover:text-acid">{t("pricing.cancelPro", "Cancel Pro")}</button>
             </div>
           </Reveal>
         )}
 
         <Reveal delay={120}>
           <div className="mt-12 grid grid-cols-[1fr_110px_110px] border-2 border-ink bg-card sm:grid-cols-[1fr_170px_190px]">
-            <div className="border-b-2 border-r-2 border-ink bg-paper px-5 py-5"><p className="kicker text-ink-soft">Full comparison</p></div>
+            <div className="border-b-2 border-r-2 border-ink bg-paper px-5 py-5"><p className="kicker text-ink-soft">{t("pricing.fullComparison", "Full comparison")}</p></div>
             <div className="border-b-2 border-r-2 border-ink bg-paper px-4 py-5 text-center">
               <p className="font-display text-xl font-black">Free</p>
               <p className="font-mono text-[11px] text-ink-soft">$0 · {FREE_EXPORTS} export</p>

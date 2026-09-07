@@ -2,9 +2,11 @@ import { useState, useCallback, type ChangeEvent } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Info, TrendingUp, Target, BookOpen, Zap, Edit3, ArrowRight } from 'lucide-react';
 import { extractTextFromCVFile, analyzeCV, ATSAnalysis } from '../lib/cv-analyzer';
 import { parseCVToResume, mergeCVWithResume } from '../lib/cv-parser';
+import { useI18n } from '../store/AppStore';
 import type { ResumeData } from '../lib/types';
 
 export function CVAnalyzer() {
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ATSAnalysis | null>(null);

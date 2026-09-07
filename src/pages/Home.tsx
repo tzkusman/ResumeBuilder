@@ -38,8 +38,19 @@ function useTypewriter(words: string[], speed = 85, hold = 2100) {
 }
 
 function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
-  const { t } = useI18n();
-  const typed = useTypewriter(ROTATING);
+  const { t, getRoleTitle } = useI18n();
+  const rotatingTitles = useMemo(
+    () => [
+      getRoleTitle("registered-nurse", "Registered Nurse"),
+      getRoleTitle("software-engineer", "Software Engineer"),
+      getRoleTitle("sales-manager", "Sales Manager"),
+      getRoleTitle("electrician", "Electrician"),
+      getRoleTitle("data-analyst", "Data Analyst"),
+      getRoleTitle("elementary-teacher", "Elementary Teacher"),
+    ],
+    [getRoleTitle]
+  );
+  const typed = useTypewriter(rotatingTitles);
   const sample = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +93,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
                 className="hs-sm inline-flex items-center gap-2 border-2 border-ink bg-card px-5 py-3.5 text-base font-bold text-ink transition-all hover:-translate-y-0.5 hover:border-pine hover:text-pine"
               >
                 <Icon name="upload" size={18} />
-                Score & Import CV
+                {t("cta.score", "Score & Import CV")}
               </a>
               <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine">
                 {t("hero.cta2")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
@@ -91,10 +102,10 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
           </Reveal>
           <Reveal delay={340}>
             <div className="mt-10 flex flex-wrap gap-x-8 gap-y-3 font-mono text-xs text-ink-soft">
-              <span><strong className="text-ink">94%</strong> average ATS pass</span>
-              <span><strong className="text-ink">20</strong> profession examples</span>
-              <span><strong className="text-ink">16</strong> country CV guides</span>
-              <span><strong className="text-ink">~90 sec</strong> to a first draft</span>
+              <span><strong className="text-ink">94%</strong> {t("hero.stat1", "average ATS pass")}</span>
+              <span><strong className="text-ink">20</strong> {t("hero.stat2", "profession examples")}</span>
+              <span><strong className="text-ink">16</strong> {t("hero.stat3", "country CV guides")}</span>
+              <span><strong className="text-ink">~90 sec</strong> {t("hero.stat4", "to a first draft")}</span>
             </div>
           </Reveal>
         </div>
@@ -104,7 +115,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
             <div className="absolute -inset-3 rotate-2 border-2 border-ink/15 bg-card" />
             <div className="relative overflow-hidden border-2 border-ink bg-white hs-acid">
               <div className="flex items-center justify-between border-b-2 border-ink bg-acid px-4 py-2">
-                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]">Live preview · A4</span>
+                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]">{t("hero.livePreview", "Live preview · A4")}</span>
                 <span className="flex gap-1.5">
                   <span className="h-2.5 w-2.5 border border-ink bg-paper" /><span className="h-2.5 w-2.5 border border-ink bg-paper" /><span className="h-2.5 w-2.5 border border-ink bg-coral" />
                 </span>
@@ -115,7 +126,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
                 </div>
               </div>
               <div className="border-t-2 border-ink bg-ink px-4 py-2 font-mono text-[11px] text-paper">
-                <span className="text-acid">▸ tailoring:</span> {typed}<span className="caret text-acid">▌</span>
+                <span className="text-acid">▸ {t("hero.tailoring", "tailoring:")}</span> {typed}<span className="caret text-acid">▌</span>
               </div>
             </div>
             <div className="floaty absolute -right-4 -top-6 border-2 border-ink bg-card px-4 py-3 hs-sm sm:-right-10">
@@ -123,7 +134,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
             </div>
             <div className="floaty-slow absolute -bottom-6 -left-3 flex items-center gap-2 border-2 border-ink bg-pine px-3.5 py-2.5 text-paper hs-sm sm:-left-8">
               <Icon name="shield" size={18} className="text-acid" />
-              <span className="text-xs font-bold">12/14 checks passing</span>
+              <span className="text-xs font-bold">{t("hero.checksPassing", "12/14 checks passing")}</span>
             </div>
           </div>
         </Reveal>
@@ -133,8 +144,8 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
         <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in z-50">
           <Icon name="check" size={24} />
           <div>
-            <p className="font-semibold">Resume imported successfully!</p>
-            <p className="text-sm text-green-100">Redirecting to builder...</p>
+            <p className="font-semibold">{t("import.toast.title", "Resume imported successfully!")}</p>
+            <p className="text-sm text-green-100">{t("import.toast.redirect", "Redirecting to builder...")}</p>
           </div>
         </div>
       )}
@@ -143,17 +154,17 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
 }
 
 function Ticker() {
-  const items = PROFESSIONS.map((p) => p.title);
+  const { getRoleTitle } = useI18n();
   return (
     <div className="overflow-hidden border-b-2 border-ink bg-ink py-3" aria-label="Profession examples">
       <div className="marquee-track flex items-center gap-3">
         {[0, 1].map((dup) => (
           <div key={dup} className="flex shrink-0 items-center gap-3">
-            {items.map((title, i) => {
-              const p = PROFESSIONS[i];
+            {PROFESSIONS.map((p) => {
+              const translatedTitle = getRoleTitle(p.slug, p.title);
               return (
                 <Link key={`${dup}-${p.slug}`} to={`/examples/${p.slug}`} className="group flex items-center gap-3 border border-paper/25 px-3.5 py-1.5 text-sm font-semibold text-paper/85 transition-colors hover:border-acid hover:text-acid">
-                  {title} <span className="text-acid transition-transform group-hover:translate-x-0.5">→</span>
+                  {translatedTitle} <span className="text-acid transition-transform group-hover:translate-x-0.5">→</span>
                 </Link>
               );
             })}
@@ -168,6 +179,7 @@ function AtsSection() {
   const navigate = useNavigate();
   const { replaceResume } = useResume();
   const { toast } = useToast();
+  const { t } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -361,29 +373,27 @@ ${sampleResume.skills.join(", ")}`;
         {/* Left Column: Explainer & Triggers */}
         <div>
           <Reveal>
-            <Kicker className="text-acid">In-Depth ATS Engine & CV Parser</Kicker>
+            <Kicker className="text-acid">{t("ats.kicker", "In-Depth ATS Engine & CV Parser")}</Kicker>
           </Reveal>
           <Reveal delay={80}>
             <h2 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
-              75% of resumes are rejected by robots. <em className="text-acid">Score & import yours live.</em>
+              {t("ats.title", "75% of resumes are rejected by robots. Score & import yours live.")}
             </h2>
           </Reveal>
           <Reveal delay={160}>
             <p className="mt-5 max-w-lg leading-relaxed text-paper/75">
-              Upload your existing <strong>PDF</strong> or <strong>DOCX Word document</strong>. Our dual-stream parsing
-              engine extracts your career history, metrics, and skills with high accuracy, tests 14 ATS compliance
-              algorithms, and imports directly into the visual builder.
+              {t("ats.desc", "Upload your existing PDF or DOCX Word document. Our dual-stream parsing engine extracts your career history, metrics, and skills with high accuracy, tests 14 ATS compliance algorithms, and imports directly into the visual builder.")}
             </p>
           </Reveal>
 
           <Reveal delay={240}>
             <ul className="mt-8 space-y-4">
               {[
-                ["Dual-Engine Parser", "Native PDF token decoding and DOCX XML reconstruction preserve structure and bullets."],
-                ["14 ATS Algorithmic Checks", "Contact completeness, quantified metrics ($, %, #), action verbs, and date formats."],
-                ["Direct 1-Click Builder Import", "Converts parsed CV into structured, editable fields ready for instant export."],
+                [t("ats.step1.title", "Dual-Engine Parser"), t("ats.step1.desc", "Native PDF token decoding and DOCX XML reconstruction preserve structure and bullets.")],
+                [t("ats.step2.title", "14 ATS Algorithmic Checks"), t("ats.step2.desc", "Contact completeness, quantified metrics ($, %, #), action verbs, and date formats.")],
+                [t("ats.step3.title", "Direct 1-Click Builder Import"), t("ats.step3.desc", "Converts parsed CV into structured, editable fields ready for instant export.")],
               ].map(([h, b], i) => (
-                <li key={h} className="flex gap-4 border-l-2 border-acid/50 pl-4">
+                <li key={i} className="flex gap-4 border-l-2 border-acid/50 pl-4">
                   <span className="font-mono text-sm font-bold text-acid">0{i + 1}</span>
                   <div>
                     <p className="font-display text-lg font-bold">{h}</p>
@@ -402,7 +412,7 @@ ${sampleResume.skills.join(", ")}`;
                 className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50"
               >
                 <Icon name="upload" size={18} />
-                {isScanning ? "Scanning Document..." : "Score & Import Resume"}
+                {isScanning ? t("ats.btn.scanning", "Scanning Document...") : t("ats.btn.score", "Score & Import Resume")}
               </button>
 
               <button
@@ -411,7 +421,7 @@ ${sampleResume.skills.join(", ")}`;
                 className="hs-sm inline-flex items-center gap-2 border-2 border-paper/40 bg-ink/50 px-4 py-3 text-sm font-semibold text-paper transition-all hover:border-acid hover:text-acid"
               >
                 <Icon name="sparkle" size={15} />
-                Try Sample Benchmark (88/100)
+                {t("ats.btn.benchmark", "Try Sample Benchmark (88/100)")}
               </button>
             </div>
           </Reveal>
@@ -757,16 +767,17 @@ ${sampleResume.skills.join(", ")}`;
 }
 
 function ExamplesIndex() {
+  const { t, getRoleTitle, getCategory, getDemand } = useI18n();
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <Reveal><Kicker className="text-pine">Programmatic, not generic</Kicker></Reveal>
-          <Reveal delay={80}><h2 className="mt-3 font-display text-4xl font-black tracking-tight sm:text-5xl">Real examples for real jobs.</h2></Reveal>
+          <Reveal><Kicker className="text-pine">{t("examples.kicker", "Programmatic, not generic")}</Kicker></Reveal>
+          <Reveal delay={80}><h2 className="mt-3 font-display text-4xl font-black tracking-tight sm:text-5xl">{t("examples.title", "Real examples for real jobs.")}</h2></Reveal>
         </div>
         <Reveal delay={160}>
           <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink pb-1 font-bold hover:border-pine hover:text-pine">
-            Browse all 20 examples <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
+            {t("examples.browseAll", "Browse all 20 examples")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </Reveal>
       </div>
@@ -777,8 +788,12 @@ function ExamplesIndex() {
               <div className="flex items-center gap-4">
                 <span className="font-mono text-xs text-ink-soft/70">{String(i + 1).padStart(2, "0")}</span>
                 <div>
-                  <p className="font-display text-lg font-bold leading-tight transition-colors group-hover:text-pine">{p.title} <span className="font-body text-sm font-semibold text-ink-soft">Resume Example</span></p>
-                  <p className="mt-0.5 font-mono text-[11px] text-ink-soft">{p.category} · {p.salary} · demand: {p.demand}</p>
+                  <p className="font-display text-lg font-bold leading-tight transition-colors group-hover:text-pine">
+                    {getRoleTitle(p.slug, p.title)} <span className="font-body text-sm font-semibold text-ink-soft">{t("examples.exampleTag", "Resume Example")}</span>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-soft">
+                    {getCategory(p.category)} · {p.salary} · {t("demand.label", "demand:")} {getDemand(p.demand)}
+                  </p>
                 </div>
               </div>
               <span className="grid h-8 w-8 shrink-0 place-items-center border-2 border-ink/20 transition-all group-hover:border-ink group-hover:bg-acid"><Icon name="arrow" size={15} /></span>
@@ -791,24 +806,27 @@ function ExamplesIndex() {
 }
 
 function CountriesStrip() {
+  const { t, getCountryName } = useI18n();
   return (
     <section className="border-y-2 border-ink bg-card">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <Reveal><Kicker className="text-pine">Localized experience</Kicker></Reveal>
-            <Reveal delay={80}><h2 className="mt-3 font-display text-3xl font-black sm:text-4xl">CV rules change at every border.</h2></Reveal>
+            <Reveal><Kicker className="text-pine">{t("countries.kicker", "Localized experience")}</Kicker></Reveal>
+            <Reveal delay={80}><h2 className="mt-3 font-display text-3xl font-black sm:text-4xl">{t("countries.title", "CV rules change at every border.")}</h2></Reveal>
           </div>
-          <Reveal delay={160}><Chip className="text-pine-deep"><Icon name="globe" size={13} /> 16 country guides · photos, pages, dates, ATS</Chip></Reveal>
+          <Reveal delay={160}>
+            <Chip className="text-pine-deep"><Icon name="globe" size={13} /> {t("countries.guidesCount", "16 country guides · photos, pages, dates, ATS")}</Chip>
+          </Reveal>
         </div>
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {COUNTRIES.slice(0, 8).map((c, i) => (
             <Reveal key={c.code} delay={i * 60}>
               <Link to={`/countries/${c.code}`} className="group flex h-full items-center justify-between border-2 border-ink/15 bg-paper px-4 py-4 transition-all hover:-translate-y-1 hover:border-ink hover:shadow-[4px_4px_0_0_var(--color-ink)]">
                 <div>
-                  <p className="font-display text-lg font-bold leading-tight group-hover:text-pine">{c.name}</p>
+                  <p className="font-display text-lg font-bold leading-tight group-hover:text-pine">{getCountryName(c.code, c.name)}</p>
                   <p className="mt-1 font-mono text-[10.5px] uppercase tracking-wider text-ink-soft">
-                    {c.docName} · photo: <span className={c.photo === "Never" ? "text-coral font-bold" : "text-pine font-bold"}>{c.photo.toLowerCase()}</span>
+                    {c.docName} · {t("countries.photo", "photo")}: <span className={c.photo === "Never" ? "text-coral font-bold" : "text-pine font-bold"}>{c.photo.toLowerCase()}</span>
                   </p>
                 </div>
                 <Icon name="arrow" size={16} className="text-ink-soft transition-all group-hover:translate-x-1 group-hover:text-ink" />
@@ -819,9 +837,9 @@ function CountriesStrip() {
         <Reveal delay={200}>
           <div className="mt-6 flex flex-wrap gap-2">
             {COUNTRIES.slice(8).map((c) => (
-              <Link key={c.code} to={`/countries/${c.code}`} className="border border-ink/20 bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink">{c.name}</Link>
+              <Link key={c.code} to={`/countries/${c.code}`} className="border border-ink/20 bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink">{getCountryName(c.code, c.name)}</Link>
             ))}
-            <Link to="/countries" className="border border-ink bg-ink px-3 py-1.5 text-xs font-bold text-acid transition-transform hover:-translate-y-0.5">All countries →</Link>
+            <Link to="/countries" className="border border-ink bg-ink px-3 py-1.5 text-xs font-bold text-acid transition-transform hover:-translate-y-0.5">{t("countries.allLink", "All countries →")}</Link>
           </div>
         </Reveal>
       </div>
@@ -830,14 +848,15 @@ function CountriesStrip() {
 }
 
 function HowItWorks() {
+  const { t } = useI18n();
   const steps = [
-    ["Pick your role", "Start from a pre-filled example for your exact profession — nurse, accountant, electrician — or a blank A4 sheet.", "/examples"],
-    ["Tailor to the posting", "Paste the job description. The engine matches keywords and rewrites your skills list in one click.", "/builder"],
-    ["Export everywhere", "ATS-safe PDF, editable DOCX, plain text, or a shareable link. One click each, all free.", "/pricing"],
+    [t("how.step1.title", "Pick your role"), t("how.step1.desc", "Start from a pre-filled example for your exact profession — nurse, accountant, electrician — or a blank A4 sheet."), "/examples"],
+    [t("how.step2.title", "Tailor to the posting"), t("how.step2.desc", "Paste the job description. The engine matches keywords and rewrites your skills list in one click."), "/builder"],
+    [t("how.step3.title", "Export everywhere"), t("how.step3.desc", "ATS-safe PDF, editable DOCX, plain text, or a shareable link. One click each, all free."), "/pricing"],
   ] as const;
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-      <Reveal><Kicker className="text-pine">How it works</Kicker></Reveal>
+      <Reveal><Kicker className="text-pine">{t("how.kicker", "How it works")}</Kicker></Reveal>
       <div className="mt-8 border-t-2 border-ink">
         {steps.map(([h, b, to], i) => (
           <Reveal key={h} delay={i * 90}>
@@ -857,18 +876,19 @@ function HowItWorks() {
 }
 
 function Faq() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(0);
   const faqs = [
-    ["Is ResumeBuild really free?", "Yes. Building, ATS scoring and share links are free forever — and every account gets 1 free PDF/DOCX/TXT export the moment you sign up, no card needed. Pro ($7/mo, $49/yr or $79 lifetime) makes exports, tailoring and cover letters unlimited."],
-    ["Will my resume pass ATS software?", "Every draft is checked against the 14 formatting and content rules used by Workday, Taleo, Greenhouse and Lever. The average ResumeBuild draft scores 88+ before export."],
-    ["Do you support Pakistani and Indian job markets?", "Yes — dedicated country guides cover the local two-format reality (traditional CV vs. US-style resume), Naukri optimization, notice-period norms, and WhatsApp contact conventions. The interface also toggles between English and اردو."],
-    ["What formats can I download?", "ATS-safe PDF (print-perfect A4), DOCX for editing in Word, plain text for portal pasting, and a shareable link that renders your resume online."],
-    ["Is my data private?", "Resumes live in your browser by default. If you create an account, data is stored in your private Supabase-backed workspace with row-level security — never sold, never used to train models."],
+    [t("faq.q1"), t("faq.a1")],
+    [t("faq.q2"), t("faq.a2")],
+    [t("faq.q3"), t("faq.a3")],
+    [t("faq.q4"), t("faq.a4")],
+    [t("faq.q5"), t("faq.a5")],
   ];
   return (
     <section id="faq" className="mx-auto max-w-4xl px-4 py-20 sm:px-6">
-      <Reveal><Kicker className="text-center text-pine">Questions</Kicker></Reveal>
-      <Reveal delay={80}><h2 className="mt-3 text-center font-display text-4xl font-black">Before you ask.</h2></Reveal>
+      <Reveal><Kicker className="text-center text-pine">{t("faq.kicker")}</Kicker></Reveal>
+      <Reveal delay={80}><h2 className="mt-3 text-center font-display text-4xl font-black">{t("faq.title")}</h2></Reveal>
       <div className="mt-10 border-t-2 border-ink">
         {faqs.map(([q, a], i) => (
           <div key={q} className="border-b-2 border-ink">

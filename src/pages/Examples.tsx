@@ -5,14 +5,17 @@ import ResumeDoc from "../components/ResumeDoc";
 import { PROFESSIONS, PROFESSION_CATEGORIES, getProfession } from "../data/professions";
 import { resumeFromProfession } from "../lib/types";
 import { track } from "../lib/analytics";
+import { useI18n } from "../store/AppStore";
 
 export function ExamplesIndex() {
+  const { t, getRoleTitle, getCategory, getDemand } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("All");
-  const list = useMemo(() => PROFESSIONS.filter((p) =>
-    (cat === "All" || p.category === cat) &&
-    (p.title.toLowerCase().includes(q.toLowerCase()) || p.category.toLowerCase().includes(q.toLowerCase()))
-  ), [q, cat]);
+  const list = useMemo(() => PROFESSIONS.filter((p) => {
+    const titleMatch = p.title.toLowerCase().includes(q.toLowerCase()) || getRoleTitle(p.slug, p.title).toLowerCase().includes(q.toLowerCase());
+    const catMatch = cat === "All" || p.category === cat;
+    return catMatch && (titleMatch || p.category.toLowerCase().includes(q.toLowerCase()));
+  }), [q, cat, getRoleTitle]);
 
   return (
     <>
@@ -24,47 +27,49 @@ export function ExamplesIndex() {
       />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-          <Reveal><Kicker className="text-pine">The SEO playbook, in the open</Kicker></Reveal>
-          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">Resume examples for the job you actually have.</h1></Reveal>
-          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">Twenty professions, each with a complete ATS-tested resume, salary band, demand signal and 4 role-specific writing tips. Open one, then load it into the builder pre-filled.</p></Reveal>
+          <Reveal><Kicker className="text-pine">{t("examples.page.kicker", "The SEO playbook, in the open")}</Kicker></Reveal>
+          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">{t("examples.page.title", "Resume examples for the job you actually have.")}</h1></Reveal>
+          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">{t("examples.page.sub", "Twenty professions, each with a complete ATS-tested resume, salary band, demand signal and 4 role-specific writing tips. Open one, then load it into the builder pre-filled.")}</p></Reveal>
           <Reveal delay={240}>
             <div className="mt-8 flex max-w-xl items-center gap-3 border-2 border-ink bg-card px-4 hs-sm">
               <Icon name="briefcase" size={18} className="text-ink-soft" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a job title — nurse, electrician, analyst…" className="w-full bg-transparent py-3 text-sm focus:outline-none" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("examples.page.searchPlaceholder", "Search a job title — nurse, electrician, analyst…")} className="w-full bg-transparent py-3 text-sm focus:outline-none" />
               {q && <button onClick={() => setQ("")} aria-label="Clear"><Icon name="x" size={15} className="text-ink-soft" /></button>}
             </div>
           </Reveal>
           <Reveal delay={300}>
             <div className="mt-5 flex flex-wrap gap-2">
               {["All", ...PROFESSION_CATEGORIES].map((c) => (
-                <button key={c} onClick={() => setCat(c)} className={`border px-3 py-1.5 text-xs font-bold transition-colors ${cat === c ? "border-ink bg-ink text-acid" : "border-ink/25 bg-card text-ink-soft hover:border-ink"}`}>{c}</button>
+                <button key={c} onClick={() => setCat(c)} className={`border px-3 py-1.5 text-xs font-bold transition-colors ${cat === c ? "border-ink bg-ink text-acid" : "border-ink/25 bg-card text-ink-soft hover:border-ink"}`}>
+                  {c === "All" ? t("category.all", "All") : getCategory(c)}
+                </button>
               ))}
             </div>
           </Reveal>
         </div>
       </section>
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <p className="font-mono text-xs text-ink-soft">{list.length} of {PROFESSIONS.length} examples</p>
+        <p className="font-mono text-xs text-ink-soft">{list.length} / {PROFESSIONS.length} {t("nav.examples", "examples")}</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((p, i) => (
             <Reveal key={p.slug} delay={(i % 6) * 60}>
               <Link to={`/examples/${p.slug}`} className="group flex h-full flex-col border-2 border-ink bg-card p-5 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0_0_var(--color-ink)]">
                 <div className="flex items-center justify-between">
-                  <Chip className="text-pine-deep">{p.category}</Chip>
-                  <span className={`font-mono text-[10px] font-bold uppercase tracking-wider ${p.demand === "Very High" ? "text-coral" : "text-pine"}`}>● {p.demand} demand</span>
+                  <Chip className="text-pine-deep">{getCategory(p.category)}</Chip>
+                  <span className={`font-mono text-[10px] font-bold uppercase tracking-wider ${p.demand === "Very High" ? "text-coral" : "text-pine"}`}>● {getDemand(p.demand)}</span>
                 </div>
-                <h2 className="mt-4 font-display text-2xl font-black leading-tight group-hover:text-pine">{p.title}</h2>
+                <h2 className="mt-4 font-display text-2xl font-black leading-tight group-hover:text-pine">{getRoleTitle(p.slug, p.title)}</h2>
                 <p className="mt-1 font-mono text-xs text-ink-soft">{p.salary}</p>
                 <p className="mt-3 line-clamp-3 flex-1 text-sm leading-relaxed text-ink-soft">{p.blurb}</p>
-                <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-pine">Read the example <Icon name="arrow" size={15} className="transition-transform group-hover:translate-x-1" /></span>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-pine">{t("examples.page.readExample", "Read the example")} <Icon name="arrow" size={15} className="transition-transform group-hover:translate-x-1" /></span>
               </Link>
             </Reveal>
           ))}
         </div>
         {!list.length && (
           <div className="border-2 border-dashed border-ink/30 py-16 text-center">
-            <p className="font-display text-2xl font-black">No matches for "{q}".</p>
-            <p className="mt-2 text-ink-soft">Try a broader term — or start from a blank sheet in the builder.</p>
+            <p className="font-display text-2xl font-black">{t("examples.page.noMatches", "No matches for")} "{q}".</p>
+            <p className="mt-2 text-ink-soft">{t("examples.page.noMatchesSub", "Try a broader term — or start from a blank sheet in the builder.")}</p>
           </div>
         )}
       </section>
@@ -74,6 +79,7 @@ export function ExamplesIndex() {
 
 export function ExamplePage() {
   const { slug } = useParams();
+  const { t, getRoleTitle, getCategory, getDemand } = useI18n();
   const p = getProfession(slug ?? "");
   const wrap = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.55);
@@ -100,30 +106,31 @@ export function ExamplePage() {
   const sample = resumeFromProfession(p);
   const related = PROFESSIONS.filter((x) => x.category === p.category && x.slug !== p.slug).slice(0, 3);
   const fallback = PROFESSIONS.filter((x) => x.slug !== p.slug && !related.includes(x)).slice(0, 3 - related.length);
+  const translatedTitle = getRoleTitle(p.slug, p.title);
 
   return (
     <>
       <Seo
-        title={`${p.title} Resume Example (2026) — Free Sample & Tips | ResumeBuild`}
-        description={`Free ${p.title.toLowerCase()} resume example with real experience bullets, ${p.salary} salary band, ATS-tested formatting and 4 writing tips. Load it into the builder pre-filled.`}
+        title={`${translatedTitle} Resume Example (2026) — Free Sample & Tips | ResumeBuild`}
+        description={`Free ${translatedTitle.toLowerCase()} resume example with real experience bullets, ${p.salary} salary band, ATS-tested formatting and 4 writing tips. Load it into the builder pre-filled.`}
         path={`/examples/${p.slug}`}
-        jsonLd={{ "@context": "https://schema.org", "@type": "Article", headline: `${p.title} Resume Example`, description: p.blurb, about: { "@type": "Occupation", name: p.title }, keywords: p.keywords.join(", ") }}
+        jsonLd={{ "@context": "https://schema.org", "@type": "Article", headline: `${translatedTitle} Resume Example`, description: p.blurb, about: { "@type": "Occupation", name: translatedTitle }, keywords: p.keywords.join(", ") }}
       />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
           <nav className="font-mono text-xs text-ink-soft">
-            <Link to="/examples" className="hover:text-pine">Examples</Link> <span className="mx-1">/</span> {p.category} <span className="mx-1">/</span> <span className="text-ink">{p.title}</span>
+            <Link to="/examples" className="hover:text-pine">{t("nav.examples", "Examples")}</Link> <span className="mx-1">/</span> {getCategory(p.category)} <span className="mx-1">/</span> <span className="text-ink">{translatedTitle}</span>
           </nav>
           <div className="mt-5 flex flex-wrap items-end justify-between gap-6">
             <div>
-              <Reveal><h1 className="font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">{p.title} <em className="text-pine">Resume Example</em></h1></Reveal>
+              <Reveal><h1 className="font-display text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">{translatedTitle} <em className="text-pine">{t("examples.exampleTag", "Resume Example")}</em></h1></Reveal>
               <Reveal delay={100}><p className="mt-4 max-w-2xl text-lg text-ink-soft">{p.blurb}</p></Reveal>
             </div>
             <Reveal delay={180}>
               <div className="flex flex-wrap gap-2">
                 <Chip className="bg-acid-soft text-pine-deep">{p.salary}</Chip>
-                <Chip className={p.demand === "Very High" ? "text-coral" : "text-pine"}>● {p.demand} demand</Chip>
-                <Chip>{p.category}</Chip>
+                <Chip className={p.demand === "Very High" ? "text-coral" : "text-pine"}>● {getDemand(p.demand)}</Chip>
+                <Chip>{getCategory(p.category)}</Chip>
               </div>
             </Reveal>
           </div>
@@ -134,7 +141,7 @@ export function ExamplePage() {
         <div>
           <Reveal>
             <div className="flex items-center justify-between">
-              <Kicker className="text-pine">The full example — ATS-tested</Kicker>
+              <Kicker className="text-pine">{t("examples.single.tested", "The full example — ATS-tested")}</Kicker>
               <span className="font-mono text-[10.5px] text-ink-soft">A4 · single column · Merit template</span>
             </div>
           </Reveal>
@@ -149,7 +156,7 @@ export function ExamplePage() {
           </Reveal>
           <Reveal delay={160}>
             <div className="mt-6 border-2 border-ink bg-card p-6">
-              <h2 className="font-display text-2xl font-black">Why this resume works</h2>
+              <h2 className="font-display text-2xl font-black">{t("examples.single.whyItWorks", "Why this resume works")}</h2>
               <ul className="mt-4 space-y-3">
                 {p.tips.map((tip, i) => (
                   <li key={i} className="flex gap-3">
@@ -165,18 +172,18 @@ export function ExamplePage() {
         <aside className="space-y-5 lg:sticky lg:top-36 lg:self-start">
           <Reveal delay={120}>
             <div className="border-2 border-ink bg-ink p-6 text-paper hs-acid">
-              <p className="kicker text-acid">Skip the typing</p>
-              <h3 className="mt-2 font-display text-2xl font-black">Load this exact resume into the builder.</h3>
-              <p className="mt-2 text-sm text-paper/70">Pre-filled with this experience, skills and summary — you just swap in your numbers.</p>
+              <p className="kicker text-acid">{t("examples.single.skipTyping", "Skip the typing")}</p>
+              <h3 className="mt-2 font-display text-2xl font-black">{t("examples.single.loadCta", "Load this exact resume into the builder.")}</h3>
+              <p className="mt-2 text-sm text-paper/70">{t("examples.single.loadSub", "Pre-filled with this experience, skills and summary — you just swap in your numbers.")}</p>
               <Link to={`/builder?role=${p.slug}`} onClick={() => track("cta_click", { label: `example_${p.slug}` })} className="mt-5 flex items-center justify-center gap-2 border-2 border-acid bg-acid px-4 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
-                Use this example free <Icon name="arrow" size={16} />
+                {t("examples.single.useExample", "Use this example free")} <Icon name="arrow" size={16} />
               </Link>
-              <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-widest text-paper/50">No sign-up · exports included</p>
+              <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-widest text-paper/50">{t("examples.single.noSignup", "No sign-up · exports included")}</p>
             </div>
           </Reveal>
           <Reveal delay={200}>
             <div className="border-2 border-ink bg-card p-6">
-              <p className="kicker text-pine">Keywords this page targets</p>
+              <p className="kicker text-pine">{t("examples.single.keywords", "Keywords this page targets")}</p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {p.keywords.map((k) => <Chip key={k}>{k}</Chip>)}
                 {p.skills.slice(0, 5).map((s) => <Chip key={s} className="border-pine/40 text-pine-deep">{s}</Chip>)}
@@ -185,12 +192,12 @@ export function ExamplePage() {
           </Reveal>
           <Reveal delay={260}>
             <div className="border-2 border-ink bg-card p-6">
-              <p className="kicker text-pine">Related examples</p>
+              <p className="kicker text-pine">{t("examples.single.related", "Related examples")}</p>
               <ul className="mt-3 space-y-2">
                 {[...related, ...fallback].slice(0, 3).map((r) => (
                   <li key={r.slug}>
                     <Link to={`/examples/${r.slug}`} className="group flex items-center justify-between border border-ink/15 px-3 py-2.5 text-sm font-bold transition-colors hover:border-ink hover:bg-acid-soft">
-                      {r.title} <Icon name="arrow" size={14} className="transition-transform group-hover:translate-x-1" />
+                      {getRoleTitle(r.slug, r.title)} <Icon name="arrow" size={14} className="transition-transform group-hover:translate-x-1" />
                     </Link>
                   </li>
                 ))}

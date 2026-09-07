@@ -24,14 +24,14 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const { user, logout, isPro } = useAuth();
-  const { lang, setLang, t } = useI18n();
+  const { lang, setLang, t, getRoleTitle, getCountryName } = useI18n();
   const loc = useLocation();
 
   const nav = [
     { to: "/examples", label: t("nav.examples") },
     { to: "/countries", label: t("nav.countries") },
     { to: "/templates", label: t("nav.templates") },
-    { to: "/ats-checker", label: "ATS Checker" },
+    { to: "/ats-checker", label: t("nav.ats") },
     { to: "/cover-letter", label: t("nav.cover") },
     { to: "/pricing", label: t("nav.pricing") },
   ];
@@ -50,8 +50,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             {nav.map((n) => <NavLink key={n.to} to={n.to} className={linkCls}>{n.label}</NavLink>)}
           </nav>
           <div className="flex items-center gap-2.5">
-            <div className="relative hidden sm:block">
-              <button onClick={() => setLangMenuOpen(!langMenuOpen)} className="flex items-center gap-1.5 border border-ink/25 bg-card px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink">
+            <div className="relative">
+              <button
+                onClick={() => setLangMenuOpen(!langMenuOpen)}
+                className="flex items-center gap-1.5 border border-ink/25 bg-card px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+                aria-label="Select Language"
+              >
+                <Icon name="globe" size={13} />
                 {LANGUAGE_NAMES[lang as LanguageCode]?.split(" ")[0] || "EN"}
                 <Icon name="chev" size={12} />
               </button>
@@ -72,7 +77,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {isPro && <span className="hidden border border-acid bg-acid-soft px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-widest text-pine-deep md:inline">Pro</span>}
             {user ? (
               <button onClick={() => void logout()} className="hidden border border-ink/25 px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:block">
-                {user.email.split("@")[0]} · Sign out
+                {user.email.split("@")[0]} · {t("nav.signout")}
               </button>
             ) : (
               <Link to="/auth" className="hidden border border-ink/25 px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:block">{t("nav.signin")}</Link>
@@ -92,7 +97,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="border border-ink/15 bg-card px-3 py-2.5 text-sm font-semibold">{n.label}</Link>
               ))}
               <Link to="/builder" onClick={() => setOpen(false)} className="border-2 border-ink bg-acid px-3 py-2.5 text-center text-sm font-bold">{t("nav.build")}</Link>
-              {!user && <Link to="/auth" onClick={() => setOpen(false)} className="border border-ink/15 bg-card px-3 py-2.5 text-center text-sm font-semibold">Sign in</Link>}
+              {!user && <Link to="/auth" onClick={() => setOpen(false)} className="border border-ink/15 bg-card px-3 py-2.5 text-center text-sm font-semibold">{t("nav.signin")}</Link>}
             </div>
           </div>
         )}
@@ -109,49 +114,50 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <span className="font-display text-2xl font-black">Resume<span className="text-acid">Build</span></span>
               </div>
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-paper/70">
-                ATS-proof resumes with real examples for every profession and CV rules for every market.
-                {!isSupabaseConfigured && " Running in local demo mode — connect Supabase credentials for cloud accounts."}
+                {t("footer.tagline")}
+                {!isSupabaseConfigured && " Local preview mode."}
               </p>
               <div className="mt-5 flex flex-wrap gap-2 font-mono text-[10px] uppercase tracking-widest text-acid">
                 <span className="border border-acid/40 px-2 py-1">GDPR-ready</span>
                 <span className="border border-acid/40 px-2 py-1">No data sold</span>
-                <span className="border border-acid/40 px-2 py-1">EN · اردو</span>
+                <span className="border border-acid/40 px-2 py-1">{LANGUAGE_NAMES[lang as LanguageCode]}</span>
               </div>
             </div>
             <div>
-              <h3 className="kicker text-acid">Resume examples</h3>
+              <h3 className="kicker text-acid">{t("nav.examples")}</h3>
               <ul className="mt-4 grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 lg:grid-cols-1">
-                {PROFESSIONS.slice(0, 10).map((p) => (
-                  <li key={p.slug}><Link className="text-paper/70 transition-colors hover:text-acid" to={`/examples/${p.slug}`}>{p.title} Resume</Link></li>
+                {PROFESSIONS.slice(0, 8).map((p) => (
+                  <li key={p.slug}><Link className="text-paper/70 transition-colors hover:text-acid" to={`/examples/${p.slug}`}>{getRoleTitle(p.slug, p.title)}</Link></li>
                 ))}
               </ul>
-              <Link to="/examples" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-acid">All 20 examples <Icon name="arrow" size={14} /></Link>
+              <Link to="/examples" className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-acid">{t("examples.browse")} <Icon name="arrow" size={14} /></Link>
             </div>
             <div>
-              <h3 className="kicker text-acid">More examples</h3>
+              <h3 className="kicker text-acid">{t("footer.product")}</h3>
               <ul className="mt-4 grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 lg:grid-cols-1">
-                {PROFESSIONS.slice(10).map((p) => (
-                  <li key={p.slug}><Link className="text-paper/70 transition-colors hover:text-acid" to={`/examples/${p.slug}`}>{p.title} Resume</Link></li>
-                ))}
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/builder">{t("nav.build")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/ats-checker">{t("nav.ats")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/templates">{t("nav.templates")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/cover-letter">{t("nav.cover")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/pricing">{t("nav.pricing")}</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="kicker text-acid">CV rules by country</h3>
+              <h3 className="kicker text-acid">{t("nav.countries")}</h3>
               <ul className="mt-4 grid grid-cols-2 gap-1.5 text-sm">
-                {COUNTRIES.map((c) => (
-                  <li key={c.code}><Link className="text-paper/70 transition-colors hover:text-acid" to={`/countries/${c.code}`}>{c.name}</Link></li>
+                {COUNTRIES.slice(0, 10).map((c) => (
+                  <li key={c.code}><Link className="text-paper/70 transition-colors hover:text-acid" to={`/countries/${c.code}`}>{getCountryName(c.code, c.name)}</Link></li>
                 ))}
               </ul>
             </div>
           </div>
           <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-paper/15 pt-6 text-xs text-paper/50 sm:flex-row sm:items-center">
-            <p>© 2026 ResumeBuild. Built for job seekers in every market.</p>
+            <p>{t("footer.copyright")}</p>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <Link to="/builder" className="hover:text-acid">Builder</Link>
-              <Link to="/pricing" className="hover:text-acid">Pricing</Link>
-              <Link to="/privacy" className="hover:text-acid">Privacy</Link>
-              <Link to="/terms" className="hover:text-acid">Terms</Link>
-              <a href="/sitemap.xml" className="hover:text-acid">Sitemap</a>
+              <Link to="/builder" className="hover:text-acid">{t("builder.tab.contact")}</Link>
+              <Link to="/pricing" className="hover:text-acid">{t("nav.pricing")}</Link>
+              <Link to="/privacy" className="hover:text-acid">{t("footer.privacy")}</Link>
+              <Link to="/terms" className="hover:text-acid">{t("footer.terms")}</Link>
             </div>
           </div>
         </div>

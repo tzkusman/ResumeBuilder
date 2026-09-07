@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { Icon, Seo, Gauge } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
-import { useResume, useToast, useAuth } from "../store/AppStore";
+import { useResume, useToast, useAuth, useI18n } from "../store/AppStore";
 import { ACCENTS, uid, type ResumeData, type TemplateId, type XpEntry } from "../lib/types";
 import { atsScore, extractKeywords, matchKeywords, downloadDocx, downloadTxt, printPdf, shareUrl } from "../lib/utils";
 import { track, trackDownload } from "../lib/analytics";
@@ -59,6 +59,7 @@ export default function Builder() {
   const { resume, setResume, loadRole, savedAt, saveToCloud } = useResume();
   const { toast } = useToast();
   const { user, isPro, freeExportsLeft, consumeDownload } = useAuth();
+  const { t, getRoleTitle } = useI18n();
   const [gate, setGate] = useState<null | "signin" | "upgrade">(null);
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState("contact");
@@ -185,12 +186,12 @@ export default function Builder() {
   };
 
   const sections = [
-    { id: "contact", label: "Contact" },
-    { id: "summary", label: "Summary" },
-    { id: "experience", label: "Experience" },
-    { id: "education", label: "Education" },
-    { id: "skills", label: "Skills" },
-    { id: "extras", label: "Extras" },
+    { id: "contact", label: t("builder.tab.contact", "Contact") },
+    { id: "summary", label: t("builder.tab.summary", "Summary") },
+    { id: "experience", label: t("builder.tab.experience", "Experience") },
+    { id: "education", label: t("builder.tab.education", "Education") },
+    { id: "skills", label: t("builder.tab.skills", "Skills") },
+    { id: "extras", label: t("builder.tab.extras", "Extras") },
   ];
 
   return (
@@ -200,7 +201,7 @@ export default function Builder() {
       {/* toolbar */}
       <div className="sticky top-16 z-40 border-b-2 border-ink bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-4 py-3">
-          <Link to="/" className="group flex items-center gap-2 text-sm font-bold text-ink-soft hover:text-ink"><Icon name="arrow" size={15} className="rotate-180 transition-transform group-hover:-translate-x-0.5" /> Home</Link>
+          <Link to="/" className="group flex items-center gap-2 text-sm font-bold text-ink-soft hover:text-ink"><Icon name="arrow" size={15} className="rotate-180 transition-transform group-hover:-translate-x-0.5" /> {t("builder.home", "Home")}</Link>
           <span className="hidden h-5 w-px bg-ink/20 sm:block" />
           <button onClick={() => setShowAts(!showAts)} className={`flex items-center gap-2 border-2 px-3 py-1.5 text-sm font-bold transition-colors ${report.score >= 80 ? "border-pine bg-pine text-paper" : report.score >= 55 ? "border-ink bg-acid-soft" : "border-coral bg-card text-coral"}`}>
             <Icon name="gauge" size={15} /> ATS {report.score}
@@ -209,52 +210,52 @@ export default function Builder() {
             {savedAt ? `autosaved ${new Date(savedAt).toLocaleTimeString()}` : "autosave on"} · stored in your browser
           </span>
           <div className="hidden items-center gap-1.5 lg:flex">
-            <span className="font-mono text-[10px] uppercase text-ink-soft">Sample:</span>
+            <span className="font-mono text-[10px] uppercase text-ink-soft">{t("builder.sample", "Sample:")}</span>
             <select
               onChange={(e) => {
                 const val = e.target.value;
                 if (val) {
-                  if (loadRole(val)) toast(`Loaded ${getProfession(val)?.title} sample.`, "ok");
+                  if (loadRole(val)) toast(`Loaded ${getRoleTitle(val, getProfession(val)?.title)} sample.`, "ok");
                   e.target.value = "";
                 }
               }}
               defaultValue=""
               className="border border-ink/25 bg-card px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft hover:border-ink hover:text-ink cursor-pointer"
             >
-              <option value="" disabled>Load role sample…</option>
+              <option value="" disabled>{t("builder.loadSample", "Load role sample…")}</option>
               {PROFESSIONS.map((p) => (
-                <option key={p.slug} value={p.slug}>{p.title}</option>
+                <option key={p.slug} value={p.slug}>{getRoleTitle(p.slug, p.title)}</option>
               ))}
             </select>
           </div>
           <div className="ml-auto flex items-center gap-2.5">
             <input ref={importJsonRef} type="file" accept=".json" onChange={handleImportJson} className="hidden" />
             <button onClick={() => importJsonRef.current?.click()} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Restore from JSON backup">
-              <Icon name="upload" size={13} /> Load JSON
+              <Icon name="upload" size={13} /> {t("builder.loadJson", "Load JSON")}
             </button>
             <button onClick={exportJson} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Download JSON backup">
-              <Icon name="download" size={13} /> Backup JSON
+              <Icon name="download" size={13} /> {t("builder.backupJson", "Backup JSON")}
             </button>
             {user && isPro && (
-              <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> Pro · unlimited</span>
+              <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> {t("builder.proUnlimited", "Pro · unlimited")}</span>
             )}
             {user && !isPro && freeExportsLeft > 0 && (
-              <span className="hidden items-center gap-1.5 border border-pine/50 bg-acid-soft px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-pine-deep lg:flex"><Icon name="star" size={13} /> {freeExportsLeft} free export left</span>
+              <span className="hidden items-center gap-1.5 border border-pine/50 bg-acid-soft px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-pine-deep lg:flex"><Icon name="star" size={13} /> {freeExportsLeft} {t("builder.freeLeft", "free export left")}</span>
             )}
             {!user && (
-              <Link to="/auth?next=/builder" className="hidden items-center gap-1.5 border border-dashed border-ink/40 px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink lg:flex"><Icon name="user" size={13} /> Sign in → 1 free export</Link>
+              <Link to="/auth?next=/builder" className="hidden items-center gap-1.5 border border-dashed border-ink/40 px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink lg:flex"><Icon name="user" size={13} /> {t("builder.signInOneFree", "Sign in → 1 free export")}</Link>
             )}
             <button onClick={() => void cloudSave()} disabled={saving} className="hidden items-center gap-2 border border-ink/30 px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex">
-              <Icon name="cloud" size={15} /> {saving ? "Saving…" : "Cloud save"}
+              <Icon name="cloud" size={15} /> {saving ? t("builder.saving", "Saving…") : t("builder.btn.cloudSave", "Cloud save")}
             </button>
             <div className="relative">
               <button onClick={() => setExportOpen(!exportOpen)} className="hs-sm flex items-center gap-2 border-2 border-ink bg-acid px-4 py-2 text-sm font-bold transition-all hover:-translate-y-0.5">
-                <Icon name="download" size={16} /> Export <Icon name="chev" size={13} />
+                <Icon name="download" size={16} /> {t("builder.export", "Export")} <Icon name="chev" size={13} />
               </button>
               {exportOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-60 border-2 border-ink bg-card hs-sm">
-                  {([["pdf", "PDF — ATS-safe print", "doc"], ["docx", "DOCX — editable in Word", "edit"], ["txt", "Plain text — portal paste", "copy"], ["share", "Shareable link — always free", "link"]] as const).map(([k, l, ic]) => (
-                    <button key={k} onClick={() => onExport(k)} className="flex w-full items-center gap-3 border-b border-ink/10 px-4 py-3 text-left text-sm font-semibold transition-colors last:border-0 hover:bg-acid-soft">
+                  {([["pdf", t("builder.exportPdf", "PDF — ATS-safe print"), "doc"], ["docx", t("builder.exportDocx", "DOCX — editable in Word"), "edit"], ["txt", t("builder.exportTxt", "Plain text — portal paste"), "copy"], ["share", t("builder.exportShare", "Shareable link — always free"), "link"]] as const).map(([k, l, ic]) => (
+                    <button key={k} onClick={() => onExport(k as any)} className="flex w-full items-center gap-3 border-b border-ink/10 px-4 py-3 text-left text-sm font-semibold transition-colors last:border-0 hover:bg-acid-soft">
                       <Icon name={ic} size={16} className="text-pine" /> <span className="flex-1">{l}</span>
                       {k !== "share" && (
                         !user
@@ -282,21 +283,21 @@ export default function Builder() {
           </div>
 
           {tab === "contact" && (
-            <SectionShell title="Contact details" hint="Parsers read these first" open onToggle={() => {}}>
+            <SectionShell title={t("builder.contactTitle", "Contact details")} hint={t("builder.contactHint", "Parsers read these first")} open onToggle={() => {}}>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Full name" value={resume.contact.fullName} onChange={(v) => setContact("fullName", v)} placeholder="Alex Morgan" />
-                <Field label="Job title" value={resume.contact.title} onChange={(v) => setContact("title", v)} placeholder="Registered Nurse" />
-                <Field label="Email" type="email" value={resume.contact.email} onChange={(v) => setContact("email", v)} placeholder="alex@email.com" />
-                <Field label="Phone" value={resume.contact.phone} onChange={(v) => setContact("phone", v)} placeholder="+1 (555) 014-2288" />
-                <Field label="Location" value={resume.contact.location} onChange={(v) => setContact("location", v)} placeholder="City, Country" />
-                <Field label="Website / portfolio" value={resume.contact.website} onChange={(v) => setContact("website", v)} placeholder="yoursite.com" />
-                <div className="sm:col-span-2"><Field label="LinkedIn" value={resume.contact.linkedin} onChange={(v) => setContact("linkedin", v)} placeholder="linkedin.com/in/you" /></div>
+                <Field label={t("builder.fullName", "Full name")} value={resume.contact.fullName} onChange={(v) => setContact("fullName", v)} placeholder="Alex Morgan" />
+                <Field label={t("builder.jobTitle", "Job title")} value={resume.contact.title} onChange={(v) => setContact("title", v)} placeholder="Registered Nurse" />
+                <Field label={t("builder.email", "Email")} type="email" value={resume.contact.email} onChange={(v) => setContact("email", v)} placeholder="alex@email.com" />
+                <Field label={t("builder.phone", "Phone")} value={resume.contact.phone} onChange={(v) => setContact("phone", v)} placeholder="+1 (555) 014-2288" />
+                <Field label={t("builder.location", "Location")} value={resume.contact.location} onChange={(v) => setContact("location", v)} placeholder="City, Country" />
+                <Field label={t("builder.website", "Website / portfolio")} value={resume.contact.website} onChange={(v) => setContact("website", v)} placeholder="yoursite.com" />
+                <div className="sm:col-span-2"><Field label={t("builder.linkedin", "LinkedIn")} value={resume.contact.linkedin} onChange={(v) => setContact("linkedin", v)} placeholder="linkedin.com/in/you" /></div>
               </div>
             </SectionShell>
           )}
 
           {tab === "summary" && (
-            <SectionShell title="Professional summary" hint="25–90 words · no 'I' or 'my'" open onToggle={() => {}}>
+            <SectionShell title={t("builder.summaryTitle", "Professional summary")} hint={t("builder.summaryHint", "25–90 words · no 'I' or 'my'")} open onToggle={() => {}}>
               <textarea value={resume.summary} onChange={(e) => set((r) => ({ ...r, summary: e.target.value }))} rows={6} className={inputCls} placeholder="Licensed professional with 6 years of…" />
               <p className="mt-2 font-mono text-[10.5px] text-ink-soft">{resume.summary.trim().split(/\s+/).filter(Boolean).length} words — aim for 25–90.</p>
             </SectionShell>
@@ -305,21 +306,21 @@ export default function Builder() {
           {tab === "experience" && (
             <div className="space-y-4">
               {resume.experience.map((e, idx) => (
-                <SectionShell key={e.id} title={e.role ? `Role ${idx + 1} — ${e.role}` : `Role ${idx + 1}`} hint="3+ metric-rich bullets" open onToggle={() => {}}>
+                <SectionShell key={e.id} title={e.role ? `${t("builder.role", "Role")} ${idx + 1} — ${e.role}` : `${t("builder.role", "Role")} ${idx + 1}`} hint={t("builder.xpHint", "3+ metric-rich bullets")} open onToggle={() => {}}>
                   <div className="space-y-3">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Job title" value={e.role} onChange={(v) => setXp(e.id, { role: v })} placeholder="Software Engineer II" />
-                      <Field label="Company" value={e.company} onChange={(v) => setXp(e.id, { company: v })} placeholder="Northwind Labs" />
-                      <Field label="Start" value={e.start} onChange={(v) => setXp(e.id, { start: v })} placeholder="Mar 2022" />
-                      <Field label="End" value={e.end} onChange={(v) => setXp(e.id, { end: v })} placeholder="Present" />
+                      <Field label={t("builder.jobTitle", "Job title")} value={e.role} onChange={(v) => setXp(e.id, { role: v })} placeholder="Software Engineer II" />
+                      <Field label={t("builder.company", "Company")} value={e.company} onChange={(v) => setXp(e.id, { company: v })} placeholder="Northwind Labs" />
+                      <Field label={t("builder.start", "Start")} value={e.start} onChange={(v) => setXp(e.id, { start: v })} placeholder="Mar 2022" />
+                      <Field label={t("builder.end", "End")} value={e.end} onChange={(v) => setXp(e.id, { end: v })} placeholder="Present" />
                     </div>
-                    <Field label="Location" value={e.location} onChange={(v) => setXp(e.id, { location: v })} placeholder="Remote" />
+                    <Field label={t("builder.location", "Location")} value={e.location} onChange={(v) => setXp(e.id, { location: v })} placeholder="Remote" />
                     <label className="block">
                       <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
-                        <span className={labelCls}>Achievements — one per line, start with a verb, add a number</span>
+                        <span className={labelCls}>{t("builder.achievements", "Achievements — one per line, start with a verb, add a number")}</span>
                       </div>
                       <div className="mb-2 flex flex-wrap items-center gap-1">
-                        <span className="font-mono text-[10px] uppercase text-ink-soft">Action verbs:</span>
+                        <span className="font-mono text-[10px] uppercase text-ink-soft">{t("builder.actionVerbs", "Action verbs:")}</span>
                         {["Spearheaded", "Engineered", "Accelerated", "Reduced", "Architected", "Automated", "Optimized", "Delivered"].map((verb) => (
                           <button
                             key={verb}
@@ -360,13 +361,13 @@ export default function Builder() {
                       />
                     </label>
                     <button onClick={() => set((r) => ({ ...r, experience: r.experience.filter((x) => x.id !== e.id) }))} className="flex items-center gap-2 text-xs font-bold text-coral hover:underline">
-                      <Icon name="trash" size={13} /> Remove role
+                      <Icon name="trash" size={13} /> {t("builder.removeRole", "Remove role")}
                     </button>
                   </div>
                 </SectionShell>
               ))}
               <button onClick={() => set((r) => ({ ...r, experience: [...r.experience, { id: uid(), role: "", company: "", location: "", start: "", end: "", bullets: [""] }] }))} className="flex w-full items-center justify-center gap-2 border-2 border-dashed border-ink/40 py-3.5 text-sm font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink">
-                <Icon name="plus" size={16} /> Add another role
+                <Icon name="plus" size={16} /> {t("builder.addRole", "Add another role")}
               </button>
             </div>
           )}
@@ -374,24 +375,24 @@ export default function Builder() {
           {tab === "education" && (
             <div className="space-y-4">
               {resume.education.map((e, idx) => (
-                <SectionShell key={e.id} title={e.degree ? e.degree : `Entry ${idx + 1}`} hint="Degree, school, year" open onToggle={() => {}}>
+                <SectionShell key={e.id} title={e.degree ? e.degree : `Entry ${idx + 1}`} hint={t("builder.degree", "Degree, school, year")} open onToggle={() => {}}>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Degree / program" value={e.degree} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, degree: v } : x) }))} placeholder="B.S., Computer Science" />
-                    <Field label="School" value={e.school} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, school: v } : x) }))} placeholder="University of Texas" />
-                    <Field label="Location" value={e.location} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, location: v } : x) }))} placeholder="Austin, TX" />
-                    <Field label="Year" value={e.year} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, year: v } : x) }))} placeholder="2019" />
+                    <Field label={t("builder.degree", "Degree / program")} value={e.degree} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, degree: v } : x) }))} placeholder="B.S., Computer Science" />
+                    <Field label={t("builder.school", "School")} value={e.school} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, school: v } : x) }))} placeholder="University of Texas" />
+                    <Field label={t("builder.location", "Location")} value={e.location} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, location: v } : x) }))} placeholder="Austin, TX" />
+                    <Field label={t("builder.year", "Year")} value={e.year} onChange={(v) => set((r) => ({ ...r, education: r.education.map((x) => x.id === e.id ? { ...x, year: v } : x) }))} placeholder="2019" />
                   </div>
-                  <button onClick={() => set((r) => ({ ...r, education: r.education.filter((x) => x.id !== e.id) }))} className="mt-3 flex items-center gap-2 text-xs font-bold text-coral hover:underline"><Icon name="trash" size={13} /> Remove</button>
+                  <button onClick={() => set((r) => ({ ...r, education: r.education.filter((x) => x.id !== e.id) }))} className="mt-3 flex items-center gap-2 text-xs font-bold text-coral hover:underline"><Icon name="trash" size={13} /> {t("builder.remove", "Remove")}</button>
                 </SectionShell>
               ))}
               <button onClick={() => set((r) => ({ ...r, education: [...r.education, { id: uid(), degree: "", school: "", location: "", year: "" }] }))} className="flex w-full items-center justify-center gap-2 border-2 border-dashed border-ink/40 py-3.5 text-sm font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink">
-                <Icon name="plus" size={16} /> Add education
+                <Icon name="plus" size={16} /> {t("builder.addEducation", "Add education")}
               </button>
             </div>
           )}
 
           {tab === "skills" && (
-            <SectionShell title="Skills" hint="The #1 ATS keyword source — aim for 6+" open onToggle={() => {}}>
+            <SectionShell title={t("builder.skillsTitle", "Skills")} hint={t("builder.skillsHint", "The #1 ATS keyword source — aim for 6+")} open onToggle={() => {}}>
               <div className="flex flex-wrap gap-2">
                 {resume.skills.map((s, i) => (
                   <span key={`${s}-${i}`} className="group flex items-center gap-1.5 border border-ink bg-white px-2.5 py-1.5 text-sm font-semibold">
@@ -402,7 +403,7 @@ export default function Builder() {
               </div>
               <input
                 className={`${inputCls} mt-3`}
-                placeholder="Type a skill and press Enter"
+                placeholder={t("builder.typeSkill", "Type a skill and press Enter")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     const v = (e.target as HTMLInputElement).value.trim();
@@ -414,11 +415,11 @@ export default function Builder() {
           )}
 
           {tab === "extras" && (
-            <SectionShell title="Certifications & languages" hint="License numbers, CEFR levels" open onToggle={() => {}}>
-              <label className="block"><span className={labelCls}>Certifications — one per line</span>
+            <SectionShell title={t("builder.extrasTitle", "Certifications & languages")} hint={t("builder.extrasHint", "License numbers, CEFR levels")} open onToggle={() => {}}>
+              <label className="block"><span className={labelCls}>{t("builder.certifications", "Certifications — one per line")}</span>
                 <textarea value={resume.certifications.join("\n")} onChange={(e) => set((r) => ({ ...r, certifications: e.target.value.split("\n") }))} rows={4} className={`${inputCls} font-mono text-[12.5px]`} placeholder={"PMP (PMI, 2021)\nOSHA 30"} />
               </label>
-              <label className="mt-3 block"><span className={labelCls}>Languages — one per line</span>
+              <label className="mt-3 block"><span className={labelCls}>{t("builder.languages", "Languages — one per line")}</span>
                 <textarea value={resume.languages.join("\n")} onChange={(e) => set((r) => ({ ...r, languages: e.target.value.split("\n") }))} rows={3} className={`${inputCls} font-mono text-[12.5px]`} placeholder={"English (Native)\nUrdu (C2)"} />
               </label>
             </SectionShell>
@@ -428,7 +429,7 @@ export default function Builder() {
         {/* ------------ preview column ------------ */}
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3 border-2 border-ink bg-card px-4 py-3">
-            <span className="kicker text-ink-soft">Template</span>
+            <span className="kicker text-ink-soft">{t("builder.template", "Template")}</span>
             <div className="flex flex-wrap gap-1.5">
               {TEMPLATES.map((tp) => (
                 <button key={tp.id} title={tp.note} onClick={() => { set((r) => ({ ...r, template: tp.id })); track("template_select", { template: tp.id }); }}
@@ -438,7 +439,7 @@ export default function Builder() {
               ))}
             </div>
             <span className="hidden h-5 w-px bg-ink/20 sm:block" />
-            <span className="kicker text-ink-soft">Ink</span>
+            <span className="kicker text-ink-soft">{t("builder.ink", "Ink")}</span>
             <div className="flex gap-1.5">
               {ACCENTS.map((a) => (
                 <button key={a} onClick={() => set((r) => ({ ...r, accent: a }))} aria-label={`Accent ${a}`} className={`h-6 w-6 border-2 transition-transform hover:scale-110 ${resume.accent === a ? "border-ink" : "border-transparent"}`} style={{ background: a }} />
@@ -451,7 +452,7 @@ export default function Builder() {
 
           <div ref={previewWrap} className="border-2 border-ink bg-line/40 p-4 sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
-              <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">Live A4 preview ({Math.round(effectiveScale * 100)}%)</span>
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">{t("builder.livePreview", "Live A4 preview")} ({Math.round(effectiveScale * 100)}%)</span>
               <div className="flex items-center gap-1 border border-ink/30 bg-card px-2 py-1">
                 <button type="button" onClick={() => setManualZoom((z) => Math.max(0.25, (z ?? scale) - 0.1))} className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink" title="Zoom out">-</button>
                 <span className="w-10 text-center font-mono text-[10.5px] font-bold text-ink-soft">{Math.round(effectiveScale * 100)}%</span>
@@ -465,7 +466,7 @@ export default function Builder() {
                 <ResumeDoc data={resume} />
               </div>
             </div>
-            <p className="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">Live A4 preview — exports print-exact</p>
+            <p className="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">{t("builder.previewSub", "Live A4 preview — exports print-exact")}</p>
           </div>
         </div>
       </div>
@@ -475,7 +476,7 @@ export default function Builder() {
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-6" onClick={() => setShowAts(false)}>
           <div className="toast-in max-h-[92vh] w-full max-w-3xl overflow-y-auto border-2 border-ink bg-paper hs-acid" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b-2 border-ink bg-ink px-5 py-3.5">
-              <p className="font-display text-xl font-black text-paper">ATS report <span className="text-acid">·</span> scored live</p>
+              <p className="font-display text-xl font-black text-paper">{t("builder.atsReportTitle", "ATS report · scored live")}</p>
               <button onClick={() => setShowAts(false)} className="grid h-8 w-8 place-items-center border border-paper/40 text-paper hover:border-acid hover:text-acid" aria-label="Close"><Icon name="x" size={15} /></button>
             </div>
             <div className="grid gap-8 p-6 sm:grid-cols-[auto_1fr]">
@@ -499,13 +500,13 @@ export default function Builder() {
               </ul>
             </div>
             <div className="border-t-2 border-ink bg-card p-6">
-              <p className="kicker text-pine">Tailor to a job description</p>
-              <p className="mt-1 text-sm text-ink-soft">Paste the posting. We extract its keywords, show what's missing, and add them to your skills in one click.</p>
-              <textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={5} placeholder="Paste the job description here…" className={`${inputCls} mt-3`} />
+              <p className="kicker text-pine">{t("builder.tailorTitle", "Tailor to a job description")}</p>
+              <p className="mt-1 text-sm text-ink-soft">{t("builder.tailorSub", "Paste the posting. We extract its keywords, show what's missing, and add them to your skills in one click.")}</p>
+              <textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={5} placeholder={t("builder.pasteJd", "Paste the job description here…")} className={`${inputCls} mt-3`} />
               <div className="mt-3 flex flex-wrap gap-3">
-                <button onClick={analyze} className="hs-sm border-2 border-ink bg-pine px-4 py-2.5 text-sm font-bold text-paper transition-all hover:-translate-y-0.5"><Icon name="sparkle" size={15} className="mr-1.5 inline" />Analyze keywords</button>
+                <button onClick={analyze} className="hs-sm border-2 border-ink bg-pine px-4 py-2.5 text-sm font-bold text-paper transition-all hover:-translate-y-0.5"><Icon name="sparkle" size={15} className="mr-1.5 inline" />{t("builder.analyzeKeywords", "Analyze keywords")}</button>
                 {jdAnalyzed && jdAnalyzed.some((k) => !k.matched) && (
-                  <button onClick={addMissing} className="border-2 border-ink bg-acid px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5">+ Add missing keywords</button>
+                  <button onClick={addMissing} className="border-2 border-ink bg-acid px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5">{t("builder.addMissingKeywords", "+ Add missing keywords")}</button>
                 )}
               </div>
               {jdAnalyzed && (
@@ -533,15 +534,14 @@ export default function Builder() {
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-4" onClick={() => setGate(null)}>
           <div className="toast-in w-full max-w-md border-2 border-ink bg-paper hs-acid" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b-2 border-ink bg-ink px-5 py-3.5">
-              <p className="font-display text-lg font-black text-paper">{gate === "signin" ? "One free export — on us" : "That was your free export"}</p>
+              <p className="font-display text-lg font-black text-paper">{gate === "signin" ? t("builder.gate.title", "One free export — on us") : t("builder.gate.proTitle", "That was your free export")}</p>
               <button onClick={() => setGate(null)} className="grid h-8 w-8 place-items-center border border-paper/40 text-paper transition-colors hover:border-acid hover:text-acid"><Icon name="x" size={14} /></button>
             </div>
             <div className="p-6">
               {gate === "signin" ? (
                 <>
                   <p className="text-sm leading-relaxed text-ink-soft">
-                    Create a free account and your first <strong className="text-ink">PDF, DOCX or TXT export is free</strong> — no card required.
-                    Your draft is already autosaved in this browser and will be waiting for you.
+                    {t("builder.gate.desc", "Create a free account and your first export is free — no card required.")}
                   </p>
                   <ul className="mt-4 space-y-2 border-t border-ink/10 pt-4">
                     {["1 export free with every account", "ATS score and 14-check report", "All 4 templates, 20 role examples"].map((b) => (
@@ -549,17 +549,16 @@ export default function Builder() {
                     ))}
                   </ul>
                   <Link to="/auth?next=/builder" className="hs-sm mt-5 flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5">
-                    Create free account <Icon name="arrow" size={15} />
+                    {t("builder.gate.createAccount", "Create free account")} <Icon name="arrow" size={15} />
                   </Link>
                   <p className="mt-3 text-center font-mono text-[10.5px] text-ink-soft">
-                    Already have one? <Link to="/auth?next=/builder" className="font-bold text-pine underline underline-offset-2">Sign in</Link>
+                    {t("builder.gate.haveAccount", "Already have one?")} <Link to="/auth?next=/builder" className="font-bold text-pine underline underline-offset-2">{t("builder.gate.signIn", "Sign in")}</Link>
                   </p>
                 </>
               ) : (
                 <>
                   <p className="text-sm leading-relaxed text-ink-soft">
-                    Every free account includes <strong className="text-ink">1 export</strong> — and you just used it.
-                    Pro removes the limit entirely: unlimited PDF, DOCX and TXT, every time you tweak a bullet.
+                    {t("builder.gate.proDesc", "Every free account includes 1 export — and you just used it. Pro removes the limit entirely.")}
                   </p>
                   <ul className="mt-4 space-y-2 border-t border-ink/10 pt-4">
                     {["Unlimited exports in every format", "Unlimited job-description tailoring", "Unlimited cover letters + LinkedIn About", "Cloud sync across devices"].map((b) => (
@@ -567,9 +566,9 @@ export default function Builder() {
                     ))}
                   </ul>
                   <Link to="/pricing" className="hs-sm mt-5 flex w-full items-center justify-center gap-2 border-2 border-ink bg-acid px-4 py-3 font-bold transition-all hover:-translate-y-0.5">
-                    See Pro — from $7/mo <Icon name="arrow" size={15} />
+                    {t("builder.gate.seePro", "See Pro — from $7/mo")} <Icon name="arrow" size={15} />
                   </Link>
-                  <p className="mt-3 text-center font-mono text-[10.5px] text-ink-soft">Share links stay free — export one to keep applying while you decide.</p>
+                  <p className="mt-3 text-center font-mono text-[10.5px] text-ink-soft">{t("builder.gate.shareFree", "Share links stay free — export one to keep applying while you decide.")}</p>
                 </>
               )}
             </div>

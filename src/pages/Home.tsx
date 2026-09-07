@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, type RefObject, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { Icon, Reveal, Gauge, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
@@ -36,7 +36,7 @@ function useTypewriter(words: string[], speed = 85, hold = 2100) {
   return text;
 }
 
-function Hero({ importSuccess }: { importSuccess: boolean }) {
+function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
   const { t } = useI18n();
   const typed = useTypewriter(ROTATING);
   const sample = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
@@ -161,9 +161,9 @@ function AtsSection({
   isImporting, 
   handlePdfImport 
 }: { 
-  atsFileInputRef: React.RefObject<HTMLInputElement>; 
+  atsFileInputRef: RefObject<HTMLInputElement | null>; 
   isImporting: boolean; 
-  handlePdfImport: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>; 
+  handlePdfImport: (e: ChangeEvent<HTMLInputElement>) => Promise<void>; 
 }) {
   return (
     <section className="border-b-2 border-ink bg-pine-deep text-paper">
@@ -398,7 +398,7 @@ export default function Home() {
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccess, setImportSuccess] = useState(false);
 
-  const handlePdfImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
 

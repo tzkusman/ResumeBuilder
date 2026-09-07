@@ -11,7 +11,7 @@ git init -b main
 git add .
 git commit -m "ResumeBuild v1.0.0 - ATS resume builder with SEO pages"
 git remote remove origin 2>nul
-git remote add origin https://github.com/tzkusman/Resumebuild.git
+git remote add origin https://github.com/tzkusman/ResumeBuilder.git
 git branch -M main
 git push -u origin main
 

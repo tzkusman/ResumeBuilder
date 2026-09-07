@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ChangeEvent } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Info, TrendingUp, Target, BookOpen, Zap, Edit3, ArrowRight } from 'lucide-react';
 import { parseDocxFile, parsePdfFile, analyzeCV, ATSAnalysis } from '../lib/cv-analyzer';
 import { parseCVToResume, mergeCVWithResume } from '../lib/cv-parser';
@@ -50,7 +50,7 @@ export function CVAnalyzer() {
     window.location.href = '/builder';
   }, [parsedResume]);
 
-  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (!uploadedFile) return;
 
@@ -280,7 +280,7 @@ export function CVAnalyzer() {
                   .map(([key, value]) => (
                     <div key={key} className="flex items-center justify-between text-sm">
                       <span className="capitalize">{key}</span>
-                      {value.exists ? (
+                      {(value as any).exists ? (
                         <CheckCircle className="w-4 h-4 text-green-500" />
                       ) : (
                         <AlertCircle className="w-4 h-4 text-red-500" />

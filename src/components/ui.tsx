@@ -29,7 +29,7 @@ const PATHS: Record<string, ReactNode> = {
   upload: <path d="M12 16V4m0 0-4 4m4-4 4 4M4 20h16" strokeLinecap="round" strokeLinejoin="round" />,
 };
 
-export function Icon({ name, size = 18, className = "" }: { name: keyof typeof PATHS | string; size?: number; className?: string }) {
+export function Icon({ name, size = 18, className = "" }: { name: keyof typeof PATHS | string; size?: number; className?: string; key?: any }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={`shrink-0 ${className}`} aria-hidden="true">
       {PATHS[name]}
@@ -38,7 +38,7 @@ export function Icon({ name, size = 18, className = "" }: { name: keyof typeof P
 }
 
 /* ---------------- Scroll reveal ---------------- */
-export function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+export function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number; key?: any }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -127,10 +127,10 @@ export function Seo({ title, description, path, jsonLd }: { title: string; descr
 }
 
 /* ---------------- Small atoms ---------------- */
-export function Kicker({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Kicker({ children, className = "" }: { children: ReactNode; className?: string; key?: any }) {
   return <p className={`kicker ${className}`}>{children}</p>;
 }
 
-export function Chip({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Chip({ children, className = "" }: { children: ReactNode; className?: string; key?: any }) {
   return <span className={`inline-flex items-center gap-1.5 border border-ink/20 bg-card px-2.5 py-1 font-mono text-[11px] font-medium ${className}`}>{children}</span>;
 }

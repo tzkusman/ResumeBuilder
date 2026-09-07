@@ -1,0 +1,6 @@
+{
+  "name": "ResumeBuild",
+  "description": "ATS-proof resume builder with profession examples, country CV guides, ATS scoring checker, and PDF/DOCX export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

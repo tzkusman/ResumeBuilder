@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link, useSearchParams } from "react-router-dom";
 import { Icon, Seo, Gauge } from "../components/ui";
@@ -8,7 +8,7 @@ import { ACCENTS, uid, type ResumeData, type TemplateId, type XpEntry } from "..
 import { atsScore, extractKeywords, matchKeywords, downloadDocx, downloadTxt, printPdf, shareUrl } from "../lib/utils";
 import { track, trackDownload } from "../lib/analytics";
 import { isSupabaseConfigured } from "../lib/supabase";
-import { getProfession } from "../data/professions";
+import { getProfession, PROFESSIONS } from "../data/professions";
 
 const TEMPLATES: { id: TemplateId; name: string; note: string }[] = [
   { id: "merit", name: "Merit", note: "ATS-safe · single column" },
@@ -40,7 +40,7 @@ function Field({ label, value, onChange, placeholder, type = "text" }: { label: 
   );
 }
 
-function SectionShell({ title, hint, children, open, onToggle }: { title: string; hint: string; children: React.ReactNode; open: boolean; onToggle: () => void }) {
+function SectionShell({ title, hint, children, open, onToggle }: { title: string; hint: string; children: ReactNode; open: boolean; onToggle: () => void; key?: any }) {
   return (
     <div className="border-2 border-ink bg-card">
       <button onClick={onToggle} className="flex w-full items-center justify-between px-4 py-3.5 text-left" aria-expanded={open}>
@@ -148,6 +148,42 @@ export default function Builder() {
     toast(ok ? "Saved to your cloud workspace." : "Cloud save failed — check connection.", ok ? "ok" : "warn");
   };
 
+  const [manualZoom, setManualZoom] = useState<number | null>(null);
+  const effectiveScale = manualZoom ?? scale;
+  const importJsonRef = useRef<HTMLInputElement>(null);
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(resume, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileName}-backup.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("JSON backup downloaded successfully.", "ok");
+  };
+
+  const handleImportJson = (e: ChangeEvent<HTMLInputElement>) => {
+    const uploaded = e.target.files?.[0];
+    if (!uploaded) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target?.result as string);
+        if (parsed && typeof parsed === "object" && parsed.contact) {
+          setResume(parsed);
+          toast("Resume restored from backup file.", "ok");
+        } else {
+          toast("Invalid resume file format.", "warn");
+        }
+      } catch {
+        toast("Failed to parse JSON file.", "warn");
+      }
+    };
+    reader.readAsText(uploaded);
+    e.target.value = "";
+  };
+
   const sections = [
     { id: "contact", label: "Contact" },
     { id: "summary", label: "Summary" },
@@ -172,7 +208,33 @@ export default function Builder() {
           <span className="hidden font-mono text-[10.5px] text-ink-soft md:block">
             {savedAt ? `autosaved ${new Date(savedAt).toLocaleTimeString()}` : "autosave on"} · stored in your browser
           </span>
+          <div className="hidden items-center gap-1.5 lg:flex">
+            <span className="font-mono text-[10px] uppercase text-ink-soft">Sample:</span>
+            <select
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val) {
+                  if (loadRole(val)) toast(`Loaded ${getProfession(val)?.title} sample.`, "ok");
+                  e.target.value = "";
+                }
+              }}
+              defaultValue=""
+              className="border border-ink/25 bg-card px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft hover:border-ink hover:text-ink cursor-pointer"
+            >
+              <option value="" disabled>Load role sample…</option>
+              {PROFESSIONS.map((p) => (
+                <option key={p.slug} value={p.slug}>{p.title}</option>
+              ))}
+            </select>
+          </div>
           <div className="ml-auto flex items-center gap-2.5">
+            <input ref={importJsonRef} type="file" accept=".json" onChange={handleImportJson} className="hidden" />
+            <button onClick={() => importJsonRef.current?.click()} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Restore from JSON backup">
+              <Icon name="upload" size={13} /> Load JSON
+            </button>
+            <button onClick={exportJson} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Download JSON backup">
+              <Icon name="download" size={13} /> Backup JSON
+            </button>
             {user && isPro && (
               <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> Pro · unlimited</span>
             )}
@@ -253,7 +315,42 @@ export default function Builder() {
                     </div>
                     <Field label="Location" value={e.location} onChange={(v) => setXp(e.id, { location: v })} placeholder="Remote" />
                     <label className="block">
-                      <span className={labelCls}>Achievements — one per line, start with a verb, add a number</span>
+                      <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                        <span className={labelCls}>Achievements — one per line, start with a verb, add a number</span>
+                      </div>
+                      <div className="mb-2 flex flex-wrap items-center gap-1">
+                        <span className="font-mono text-[10px] uppercase text-ink-soft">Action verbs:</span>
+                        {["Spearheaded", "Engineered", "Accelerated", "Reduced", "Architected", "Automated", "Optimized", "Delivered"].map((verb) => (
+                          <button
+                            key={verb}
+                            type="button"
+                            onClick={() => {
+                              const last = e.bullets[e.bullets.length - 1] || "";
+                              const updated = [...e.bullets];
+                              if (!last.trim()) {
+                                updated[updated.length - 1] = `${verb} `;
+                              } else {
+                                updated.push(`${verb} `);
+                              }
+                              setXp(e.id, { bullets: updated });
+                            }}
+                            className="border border-ink/20 bg-card px-1.5 py-0.5 font-mono text-[10px] font-semibold text-pine hover:border-pine hover:bg-acid-soft"
+                          >
+                            +{verb}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const template = "Engineered [system] reducing [metric] by [X]%, saving $[Y] annually";
+                            setXp(e.id, { bullets: [...e.bullets.filter(Boolean), template] });
+                            toast("Added metric-driven bullet template.", "ok");
+                          }}
+                          className="ml-auto border border-pine/40 bg-acid px-2 py-0.5 font-mono text-[10px] font-bold text-ink hover:border-ink"
+                        >
+                          + Metric Template
+                        </button>
+                      </div>
                       <textarea
                         value={e.bullets.join("\n")}
                         onChange={(ev) => setXp(e.id, { bullets: ev.target.value.split("\n") })}
@@ -353,8 +450,18 @@ export default function Builder() {
           </div>
 
           <div ref={previewWrap} className="border-2 border-ink bg-line/40 p-4 sm:p-6">
-            <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * scale, height: 1123 * scale }}>
-              <div className="origin-top-left" style={{ transform: `scale(${scale})`, width: 794 }}>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
+              <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">Live A4 preview ({Math.round(effectiveScale * 100)}%)</span>
+              <div className="flex items-center gap-1 border border-ink/30 bg-card px-2 py-1">
+                <button type="button" onClick={() => setManualZoom((z) => Math.max(0.25, (z ?? scale) - 0.1))} className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink" title="Zoom out">-</button>
+                <span className="w-10 text-center font-mono text-[10.5px] font-bold text-ink-soft">{Math.round(effectiveScale * 100)}%</span>
+                <button type="button" onClick={() => setManualZoom((z) => Math.min(1.5, (z ?? scale) + 0.1))} className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink" title="Zoom in">+</button>
+                <button type="button" onClick={() => setManualZoom(null)} className="ml-1 border-l border-ink/20 pl-1.5 font-mono text-[10px] uppercase text-ink-soft hover:text-ink">Fit</button>
+                <button type="button" onClick={() => setManualZoom(1)} className="font-mono text-[10px] uppercase text-ink-soft hover:text-ink">100%</button>
+              </div>
+            </div>
+            <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }}>
+              <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794 }}>
                 <ResumeDoc data={resume} />
               </div>
             </div>

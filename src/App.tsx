@@ -41,10 +41,10 @@ export default function App() {
             
             {/* Country-specific routes for localized SEO */}
             {COUNTRY_CODES.map((code) => (
-              <Route key={code} path={`/${code}`} element={<Navigate to={`/countries/${code}`} replace />} />
+              <Route {...({ key: code, path: `/${code}`, element: <Navigate to={`/countries/${code}`} replace /> } as any)} />
             ))}
             {COUNTRY_CODES.map((code) => (
-              <Route key={code} path={`/${code}/cv-resume`} element={<Navigate to={`/countries/${code}`} replace />} />
+              <Route {...({ key: code, path: `/${code}/cv-resume`, element: <Navigate to={`/countries/${code}`} replace /> } as any)} />
             ))}
             
             <Route path="/examples" element={<ExamplesIndex />} />

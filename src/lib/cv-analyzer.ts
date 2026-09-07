@@ -1,8 +1,14 @@
 import * as mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Initialize PDF.js worker with compatible version (v3.11.174)
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// Initialize PDF.js worker with resilient fallback
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  } catch {
+    // Silently continue; fallback text extraction is in place
+  }
+}
 
 export interface ATSAnalysis {
   score: number;
@@ -105,95 +111,241 @@ const ACTION_VERBS = [
   'Organized', 'Oversaw', 'Planned', 'Reduced', 'Streamlined', 'Successfully'
 ];
 
+/**
+ * Converts Mammoth HTML output into clean structured text with line breaks,
+ * bullet symbols, and preserved section headers.
+ */
+function convertMammothHtmlToText(html: string): string {
+  return html
+    .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n• $1')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<tr[^>]*>(.*?)<\/tr>/gi, '\n$1')
+    .replace(/<t[dh][^>]*>(.*?)<\/t[dh]>/gi, ' $1 | ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Fallback binary text extractor for legacy .doc or uncompressed streams
+ */
+async function extractTextFromBinaryFallback(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  let currentWord = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const code = bytes[i];
+    if (code === 10 || code === 13) {
+      if (currentWord.length >= 3) {
+        str += currentWord + '\n';
+        currentWord = '';
+      }
+    } else if (code >= 32 && code <= 126) {
+      currentWord += String.fromCharCode(code);
+    } else {
+      if (currentWord.length >= 3) {
+        str += currentWord + ' ';
+        currentWord = '';
+      }
+    }
+  }
+  if (currentWord.length >= 3) str += currentWord;
+  return str.replace(/[ \t]+/g, ' ').slice(0, 50000);
+}
+
 export async function parseDocxFile(file: File): Promise<{ text: string; rawHtml?: string }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
     
-    // Also extract with HTML for better structure detection
-    const htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+    // Extract raw text
+    const textResult = await mammoth.extractRawText({ arrayBuffer });
+    
+    // Also extract HTML to preserve structure (headings, bullets, tables)
+    let htmlResult = { value: '', messages: [] as any[] };
+    try {
+      htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+    } catch {
+      // ignore html error if raw text succeeded
+    }
+    
+    let structuredText = '';
+    if (htmlResult.value && htmlResult.value.length > 30) {
+      structuredText = convertMammothHtmlToText(htmlResult.value);
+    }
+    
+    const rawVal = textResult.value || '';
+    const finalText = (structuredText && structuredText.length >= rawVal.length * 0.6)
+      ? structuredText
+      : rawVal;
+      
+    if (!finalText || finalText.trim().length < 20) {
+      // Try fallback binary text extraction for older .doc
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback && fallback.trim().length >= 20) {
+        return { text: fallback.trim(), rawHtml: '' };
+      }
+      throw new Error("Could not extract readable text from document.");
+    }
     
     return {
-      text: result.value || '',
-      rawHtml: htmlResult.value
+      text: finalText.trim(),
+      rawHtml: htmlResult.value || ''
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing DOCX:', error);
-    throw new Error('Failed to parse DOCX file. Please ensure it\'s a valid Word document.');
+    try {
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback && fallback.trim().length >= 20) {
+        return { text: fallback.trim(), rawHtml: '' };
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(error.message || 'Failed to parse DOCX file. Please ensure it is a valid Word document (.docx or .doc).');
   }
 }
 
 export async function parsePdfFile(file: File): Promise<{ text: string }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    
-    // Use Uint8Array for better compatibility
     const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Load PDF document with additional options for better compatibility
-    const loadingTask = pdfjsLib.getDocument({
-      data: uint8Array,
-      useSystemFonts: true,
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      verbosity: 0, // Suppress warnings
-      disableFontFace: false,
-      enableXfa: true // Enable XFA forms support
-    });
-    
-    const pdf = await loadingTask.promise;
     
     let fullText = '';
     
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
+    try {
+      const loadingTask = pdfjsLib.getDocument({
+        data: uint8Array,
+        useSystemFonts: true,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        verbosity: 0,
+        disableFontFace: false,
+        enableXfa: true
+      });
       
-      // Get text content with improved extraction
-      const textContent = await page.getTextContent();
+      const pdf = await loadingTask.promise;
       
-      // Extract text items and preserve spacing
-      const pageText = textContent.items
-        .map((item: any) => {
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        let lastY: number | null = null;
+        let pageText = '';
+        
+        for (const item of textContent.items as any[]) {
           const str = item.str;
-          // Handle common PDF encoding issues
-          if (str && typeof str === 'string') {
-            return str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+          if (!str && !item.hasEOL) continue;
+          
+          const currentY = item.transform ? item.transform[5] : null;
+          const isNewLine = item.hasEOL || (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3.5);
+          
+          if (isNewLine) {
+            if (!pageText.endsWith('\n')) {
+              pageText += '\n';
+            }
+          } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
+            pageText += ' ';
           }
-          return '';
-        })
-        .filter(s => s.length > 0)
-        .join(' ');
-      
-      fullText += pageText + '\n\n';
+          
+          if (str) {
+            pageText += str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+          }
+          
+          if (currentY !== null) lastY = currentY;
+        }
+        
+        fullText += pageText + '\n\n';
+      }
+    } catch (pdfJsErr: any) {
+      console.warn('PDF.js worker/load failed, attempting direct text stream scan:', pdfJsErr);
+      fullText = await extractTextFromBinaryFallback(file);
     }
     
-    // Clean up extracted text
+    // Clean up extracted text while strictly preserving newlines
     fullText = fullText
-      .replace(/\s+/g, ' ')
-      .replace(/\n\s*\n/g, '\n\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
     
-    // Check if we got meaningful text
-    if (fullText.length < 50) {
-      throw new Error('PDF appears to be image-based or scanned. Please use a text-based PDF or convert images to text first.');
+    if (fullText.length < 30) {
+      // Last try: binary fallback
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback.trim().length >= 30) {
+        return { text: fallback.trim() };
+      }
+      throw new Error('PDF appears to be image-based or scanned with no selectable text. Please use a text-based PDF or convert to DOCX.');
     }
     
     return { text: fullText };
   } catch (error: any) {
     console.error('Error parsing PDF:', error);
     
-    // Provide more helpful error messages
     if (error.message?.includes('password')) {
       throw new Error('This PDF is password-protected. Please unlock it before uploading.');
     }
     if (error.message?.includes('Invalid') || error.message?.includes('corrupt')) {
       throw new Error('This PDF file appears to be corrupted. Please try re-exporting it.');
     }
-    if (error.name === 'UnknownErrorException') {
-      throw new Error('Failed to parse PDF. This may be an image-based/scanned PDF. Please convert to text format first.');
-    }
     
-    throw new Error('Failed to parse PDF file. This PDF may be image-based, encrypted, or corrupted. Try converting to DOCX format.');
+    throw new Error(error.message || 'Failed to parse PDF file. Please ensure it contains selectable text.');
+  }
+}
+
+/**
+ * Universal CV file parser: handles .pdf, .docx, .doc, .txt
+ */
+export async function extractTextFromCVFile(file: File): Promise<{ text: string; format: 'docx' | 'pdf' | 'txt' | 'unknown'; rawHtml?: string }> {
+  const fileName = (file.name || '').toLowerCase();
+  const fileType = (file.type || '').toLowerCase();
+  
+  if (fileName.endsWith('.docx') || fileType.includes('wordprocessingml')) {
+    const res = await parseDocxFile(file);
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
+  }
+  
+  if (fileName.endsWith('.pdf') || fileType.includes('pdf')) {
+    const res = await parsePdfFile(file);
+    return { text: res.text, format: 'pdf' };
+  }
+  
+  if (fileName.endsWith('.doc') || fileType.includes('msword')) {
+    try {
+      const res = await parseDocxFile(file);
+      return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
+    } catch {
+      const txt = await extractTextFromBinaryFallback(file);
+      if (txt.length >= 30) return { text: txt, format: 'docx' };
+      throw new Error('Please save your resume as modern .docx or .pdf for best ATS parsing accuracy.');
+    }
+  }
+  
+  if (fileName.endsWith('.txt') || fileType.startsWith('text/')) {
+    const text = await file.text();
+    return { text, format: 'txt' };
+  }
+  
+  // Unknown extension: try PDF first, then DOCX
+  try {
+    const res = await parsePdfFile(file);
+    return { text: res.text, format: 'pdf' };
+  } catch {
+    const res = await parseDocxFile(file);
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
   }
 }
 

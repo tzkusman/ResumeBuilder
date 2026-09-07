@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState, useRef, type RefObject, type ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, useRef, type ChangeEvent, type DragEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Icon, Reveal, Gauge, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
 import { PROFESSIONS, PROFESSION_CATEGORIES, getProfession } from "../data/professions";
 import { COUNTRIES } from "../data/countries";
-import { resumeFromProfession } from "../lib/types";
-import { useI18n } from "../store/AppStore";
+import { resumeFromProfession, emptyResume } from "../lib/types";
+import { useI18n, useResume, useToast } from "../store/AppStore";
 import { track } from "../lib/analytics";
-import { parsePdfFile } from "../lib/cv-analyzer";
+import { extractTextFromCVFile, analyzeCV, type ATSAnalysis } from "../lib/cv-analyzer";
 import { parseCVToResume, mergeCVWithResume } from "../lib/cv-parser";
+import { atsScore, type AtsCheck, type AtsReport, extractKeywords } from "../lib/utils";
 import type { ResumeData } from "../lib/types";
 
 const ROTATING = ["Registered Nurse", "Software Engineer", "Sales Manager", "Electrician", "Data Analyst", "Elementary Teacher"];
@@ -76,6 +77,13 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
               >
                 {t("cta.start")} <Icon name="arrow" size={18} className="transition-transform group-hover:translate-x-1" />
               </Link>
+              <a
+                href="#ats-engine"
+                className="hs-sm inline-flex items-center gap-2 border-2 border-ink bg-card px-5 py-3.5 text-base font-bold text-ink transition-all hover:-translate-y-0.5 hover:border-pine hover:text-pine"
+              >
+                <Icon name="upload" size={18} />
+                Score & Import CV
+              </a>
               <Link to="/examples" className="group inline-flex items-center gap-2 border-b-2 border-ink px-1 pb-1 text-base font-bold transition-colors hover:text-pine hover:border-pine">
                 {t("hero.cta2")} <Icon name="arrow" size={16} className="transition-transform group-hover:translate-x-1" />
               </Link>
@@ -156,36 +164,224 @@ function Ticker() {
   );
 }
 
-function AtsSection({ 
-  atsFileInputRef, 
-  isImporting, 
-  handlePdfImport 
-}: { 
-  atsFileInputRef: RefObject<HTMLInputElement | null>; 
-  isImporting: boolean; 
-  handlePdfImport: (e: ChangeEvent<HTMLInputElement>) => Promise<void>; 
-}) {
+function AtsSection() {
+  const navigate = useNavigate();
+  const { replaceResume } = useResume();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanStep, setScanStep] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"checks" | "extracted" | "matcher">("checks");
+  const [jobDescription, setJobDescription] = useState("");
+
+  // Scan result state
+  const [scanResult, setScanResult] = useState<{
+    fileName: string;
+    fileFormat: string;
+    fileSize: string;
+    resume: ResumeData;
+    report: AtsReport;
+    analysis: ATSAnalysis;
+    rawText: string;
+  } | null>(null);
+
+  const sampleResume = useMemo(() => resumeFromProfession(getProfession("software-engineer")!), []);
+
+  // Process uploaded file
+  const processCVFile = async (file: File) => {
+    const validExtensions = [".pdf", ".docx", ".doc", ".txt"];
+    const hasValidExt = validExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
+
+    if (!hasValidExt && file.type && !file.type.includes("pdf") && !file.type.includes("word") && !file.type.includes("text")) {
+      setError("Please upload a PDF (.pdf) or Word document (.docx, .doc).");
+      return;
+    }
+
+    setError(null);
+    setIsScanning(true);
+    setScanStep("Reading document binary structure...");
+
+    try {
+      // Step 1: In-depth text extraction
+      await new Promise((r) => setTimeout(r, 200));
+      const extracted = await extractTextFromCVFile(file);
+
+      if (!extracted.text || extracted.text.trim().length < 40) {
+        throw new Error(
+          "We could not extract readable text from this document. It may be a scanned image-only PDF without OCR, or protected. Try exporting as standard text PDF or DOCX."
+        );
+      }
+
+      // Step 2: In-depth resume parsing
+      setScanStep("Extracting contact info, career timeline, education & skills...");
+      await new Promise((r) => setTimeout(r, 250));
+      const parsedPartial = parseCVToResume(extracted.text);
+
+      // Merge with empty resume structure to guarantee 100% compliant ResumeData
+      const completeResume = mergeCVWithResume(parsedPartial, emptyResume());
+
+      // Step 3: Run 14 ATS scoring checks
+      setScanStep("Auditing 14 ATS engine parameters & quantified metrics...");
+      await new Promise((r) => setTimeout(r, 250));
+      const report = atsScore(completeResume);
+      const analysis = analyzeCV(extracted.text, jobDescription || undefined);
+
+      const sizeKb = (file.size / 1024).toFixed(0);
+      setScanResult({
+        fileName: file.name,
+        fileFormat: extracted.format.toUpperCase(),
+        fileSize: `${sizeKb} KB`,
+        resume: completeResume,
+        report,
+        analysis,
+        rawText: extracted.text,
+      });
+    } catch (err: any) {
+      console.error("ATS Scan error:", err);
+      setError(err?.message || "Failed to parse document. Please check file format and try again.");
+    } finally {
+      setIsScanning(false);
+      setScanStep("");
+    }
+  };
+
+  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processCVFile(file);
+    }
+    // reset input value so re-selecting same file works
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processCVFile(file);
+    }
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  // Load sample resume for instant benchmark
+  const loadSampleBenchmark = () => {
+    const sampleText = `${sampleResume.contact.fullName}
+${sampleResume.contact.title}
+${sampleResume.contact.email} | ${sampleResume.contact.phone} | ${sampleResume.contact.location}
+
+Summary
+${sampleResume.summary}
+
+Experience
+${sampleResume.experience.map((e) => `${e.role} at ${e.company} (${e.start} - ${e.end})\n${e.bullets.map((b) => `• ${b}`).join("\n")}`).join("\n\n")}
+
+Education
+${sampleResume.education.map((e) => `${e.degree} - ${e.school} (${e.year})`).join("\n")}
+
+Skills
+${sampleResume.skills.join(", ")}`;
+
+    const report = atsScore(sampleResume);
+    const analysis = analyzeCV(sampleText, jobDescription || undefined);
+
+    setScanResult({
+      fileName: "Software_Engineer_Sample.pdf",
+      fileFormat: "PDF",
+      fileSize: "84 KB",
+      resume: sampleResume,
+      report,
+      analysis,
+      rawText: sampleText,
+    });
+    setError(null);
+  };
+
+  // Import into Resume Builder
+  const handleImportToBuilder = () => {
+    if (!scanResult) return;
+
+    // Load existing resume from storage to keep any preferred styling/accent
+    const existingStr = localStorage.getItem("rb_resume_v1");
+    const existing = existingStr ? (JSON.parse(existingStr) as ResumeData) : emptyResume();
+
+    const merged = mergeCVWithResume(scanResult.resume, existing);
+
+    // Save to AppStore context & localStorage
+    replaceResume(merged);
+    localStorage.setItem("rb_resume_v1", JSON.stringify(merged));
+
+    toast("Resume imported into builder with parsed data!", "ok");
+    navigate("/builder");
+  };
+
+  // Recalculate keyword matches if job description changes
+  const jobKeywords = useMemo(() => {
+    if (!jobDescription.trim() || !scanResult) return [];
+    return extractKeywords(jobDescription, 12);
+  }, [jobDescription, scanResult]);
+
+  const matchedKeywords = useMemo(() => {
+    if (!scanResult || jobKeywords.length === 0) return [];
+    const textLower = scanResult.rawText.toLowerCase();
+    return jobKeywords.map((k) => ({
+      term: k.term,
+      present: textLower.includes(k.term.toLowerCase()),
+    }));
+  }, [scanResult, jobKeywords]);
+
+  const matchPercentage = useMemo(() => {
+    if (matchedKeywords.length === 0) return null;
+    const found = matchedKeywords.filter((k) => k.present).length;
+    return Math.round((found / matchedKeywords.length) * 100);
+  }, [matchedKeywords]);
+
   return (
-    <section className="border-b-2 border-ink bg-pine-deep text-paper">
-      <div className="dotgrid-dark mx-auto grid max-w-7xl items-center gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2">
+    <section id="ats-engine" className="border-b-2 border-ink bg-pine-deep text-paper scroll-mt-14">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.docx,.doc,.txt"
+        onChange={handleFileInputChange}
+        className="hidden"
+      />
+
+      <div className="dotgrid-dark mx-auto grid max-w-7xl items-start gap-12 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_1.25fr] lg:py-24">
+        {/* Left Column: Explainer & Triggers */}
         <div>
-          <Reveal><Kicker className="text-acid">The ATS engine</Kicker></Reveal>
+          <Reveal>
+            <Kicker className="text-acid">In-Depth ATS Engine & CV Parser</Kicker>
+          </Reveal>
           <Reveal delay={80}>
-            <h2 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">75% of resumes are killed by a robot. <em className="text-acid">Yours won't be.</em></h2>
+            <h2 className="mt-4 font-display text-4xl font-black leading-tight sm:text-5xl">
+              75% of resumes are rejected by robots. <em className="text-acid">Score & import yours live.</em>
+            </h2>
           </Reveal>
           <Reveal delay={160}>
             <p className="mt-5 max-w-lg leading-relaxed text-paper/75">
-              Every draft is scored against the 14 checks real parsing engines run — contact data, standard headings,
-              action verbs, quantified metrics, single-column layout. Paste the job description and the engine shows
-              exactly which keywords you're missing.
+              Upload your existing <strong>PDF</strong> or <strong>DOCX Word document</strong>. Our dual-stream parsing
+              engine extracts your career history, metrics, and skills with high accuracy, tests 14 ATS compliance
+              algorithms, and imports directly into the visual builder.
             </p>
           </Reveal>
+
           <Reveal delay={240}>
             <ul className="mt-8 space-y-4">
               {[
-                ["Parse", "Single-column, standard-heading layouts that survive Workday, Taleo and Greenhouse."],
-                ["Match", "Your bullets checked against the posting's own vocabulary — verbs, tools, metrics."],
-                ["Score", "A 0–100 report with weighted fixes, so you repair the 12-point gaps first."],
+                ["Dual-Engine Parser", "Native PDF token decoding and DOCX XML reconstruction preserve structure and bullets."],
+                ["14 ATS Algorithmic Checks", "Contact completeness, quantified metrics ($, %, #), action verbs, and date formats."],
+                ["Direct 1-Click Builder Import", "Converts parsed CV into structured, editable fields ready for instant export."],
               ].map(([h, b], i) => (
                 <li key={h} className="flex gap-4 border-l-2 border-acid/50 pl-4">
                   <span className="font-mono text-sm font-bold text-acid">0{i + 1}</span>
@@ -197,64 +393,362 @@ function AtsSection({
               ))}
             </ul>
           </Reveal>
+
           <Reveal delay={320}>
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <Link to="/ats-checker" className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5">
-                Score my resume free <Icon name="arrow" size={17} />
-              </Link>
-              {/* Import CV Button - same design as Score button */}
+            <div className="mt-9 flex flex-wrap items-center gap-3 sm:gap-4">
               <button
-                onClick={() => atsFileInputRef.current?.click()}
-                disabled={isImporting}
-                className="hs-sm inline-flex items-center gap-2.5 border-2 border-ink bg-card px-4 sm:px-5 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isScanning}
+                className="hs-sm inline-flex items-center gap-2.5 border-2 border-acid bg-acid px-5 py-3 text-base font-bold text-ink transition-all hover:-translate-y-0.5 disabled:opacity-50"
               >
-                {isImporting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-ink"></div>
-                    <span className="hidden sm:inline">Importing...</span>
-                    <span className="sm:hidden">Import...</span>
-                  </>
-                ) : (
-                  <>
-                    <Icon name="upload" size={16} className="sm:size-[18]" />
-                    <span className="hidden sm:inline">Import CV</span>
-                    <span className="sm:hidden">Import</span>
-                    <Icon name="chev" size={12} className="hidden sm:block transition-transform group-hover:translate-y-0.5" />
-                  </>
-                )}
+                <Icon name="upload" size={18} />
+                {isScanning ? "Scanning Document..." : "Score & Import Resume"}
               </button>
-              <input
-                ref={atsFileInputRef}
-                type="file"
-                accept=".pdf,.docx,.doc"
-                onChange={handlePdfImport}
-                className="hidden"
-              />
+
+              <button
+                onClick={loadSampleBenchmark}
+                disabled={isScanning}
+                className="hs-sm inline-flex items-center gap-2 border-2 border-paper/40 bg-ink/50 px-4 py-3 text-sm font-semibold text-paper transition-all hover:border-acid hover:text-acid"
+              >
+                <Icon name="sparkle" size={15} />
+                Try Sample Benchmark (88/100)
+              </button>
             </div>
           </Reveal>
         </div>
+
+        {/* Right Column: Live ATS Interactive Card / Scanner */}
         <Reveal delay={200}>
-          <div className="relative mx-auto max-w-md border-2 border-acid/60 bg-ink p-8">
-            <div className="absolute -top-4 left-6 border border-acid bg-ink px-3 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-acid">Sample report</div>
-            <div className="flex justify-center"><Gauge value={88} size={160} label="ATS score" /></div>
-            <ul className="mt-7 space-y-3 text-sm">
-              {[
-                [true, "Single-column layout", "Parses cleanly in Workday & Taleo"],
-                [true, "Quantified metrics", "9 of 10 bullets contain numbers"],
-                [true, "Action verbs", "Led, cut, shipped, negotiated…"],
-                [false, "Missing keywords", "'Kubernetes' & 'Terraform' not found"],
-              ].map(([ok, label, detail]) => (
-                <li key={label as string} className="flex items-start gap-3 border-b border-paper/10 pb-3">
-                  <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center border ${ok ? "border-acid text-acid" : "border-coral text-coral"}`}>
-                    <Icon name={ok ? "check" : "x"} size={12} />
+          <div className="relative mx-auto w-full max-w-2xl border-2 border-acid/60 bg-ink p-5 sm:p-7 shadow-[8px_8px_0_0_rgba(0,0,0,0.4)]">
+            {/* Header Tag */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-paper/15 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="border border-acid bg-acid/15 px-2.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-acid">
+                  {scanResult ? `Live ATS Audit · ${scanResult.fileFormat}` : "Live ATS Scanner"}
+                </span>
+                {scanResult && (
+                  <span className="max-w-[200px] truncate font-mono text-xs text-paper/60">
+                    {scanResult.fileName}
                   </span>
-                  <div>
-                    <p className="font-bold">{label}</p>
-                    <p className="text-xs text-paper/60">{detail}</p>
+                )}
+              </div>
+
+              {scanResult && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-acid hover:underline"
+                >
+                  <Icon name="upload" size={13} />
+                  Scan Another File
+                </button>
+              )}
+            </div>
+
+            {/* ERROR NOTIFICATION */}
+            {error && (
+              <div className="mt-4 flex items-start gap-3 border border-coral/60 bg-coral/10 p-3.5 text-sm text-coral">
+                <Icon name="x" size={18} className="mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-bold">Parsing Note</p>
+                  <p className="text-xs text-paper/80">{error}</p>
+                </div>
+                <button onClick={() => setError(null)} className="text-xs text-paper/60 hover:text-paper">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* SCANNING STATE */}
+            {isScanning ? (
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="relative mb-6 h-16 w-16">
+                  <div className="absolute inset-0 animate-ping rounded-full bg-acid/20" />
+                  <div className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-acid bg-ink">
+                    <div className="h-7 w-7 animate-spin rounded-full border-2 border-acid border-t-transparent" />
                   </div>
-                </li>
-              ))}
-            </ul>
+                </div>
+                <p className="font-display text-xl font-bold text-acid">{scanStep || "Analyzing resume..."}</p>
+                <p className="mt-2 max-w-sm text-xs text-paper/70">
+                  Extracting text tokens, contact headers, employment dates, quantified results and skills list...
+                </p>
+              </div>
+            ) : scanResult ? (
+              /* RESULTS DASHBOARD */
+              <div className="mt-5 space-y-5">
+                {/* Score & Candidate Overview Banner */}
+                <div className="grid items-center gap-5 sm:grid-cols-[auto_1fr] border-b border-paper/15 pb-5">
+                  <div className="flex justify-center">
+                    <Gauge value={scanResult.report.score} size={135} label="ATS Score" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`px-2.5 py-0.5 font-mono text-xs font-bold uppercase tracking-wide ${
+                          scanResult.report.score >= 80
+                            ? "bg-acid text-ink"
+                            : scanResult.report.score >= 60
+                            ? "bg-amber-400 text-ink"
+                            : "bg-coral text-paper"
+                        }`}
+                      >
+                        {scanResult.report.score >= 80
+                          ? "Grade A · ATS Optimized"
+                          : scanResult.report.score >= 60
+                          ? "Grade B · Moderate Pass"
+                          : "Grade C · High Filter Risk"}
+                      </span>
+                      <span className="font-mono text-xs text-paper/60">{scanResult.fileSize}</span>
+                    </div>
+
+                    <h3 className="mt-2 font-display text-xl font-black">
+                      {scanResult.resume.contact.fullName || "Candidate Resume"}
+                    </h3>
+                    <p className="font-mono text-xs text-acid">
+                      {scanResult.resume.contact.title || "Target Professional Role"}
+                    </p>
+
+                    {/* Quick Stats */}
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-paper/70">
+                      <span>
+                        <strong className="text-paper">{scanResult.resume.experience.length}</strong> Roles
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <strong className="text-paper">{scanResult.resume.skills.length}</strong> Skills
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <strong className="text-paper">
+                          {scanResult.resume.experience.flatMap((e) => e.bullets).filter((b) => /\d|%|\$/.test(b)).length}
+                        </strong>{" "}
+                        Metrics
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <strong className="text-paper">{scanResult.report.checks.filter((c) => c.pass).length}/14</strong>{" "}
+                        Checks Pass
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex border-b border-paper/15 text-xs font-bold">
+                  <button
+                    onClick={() => setActiveTab("checks")}
+                    className={`border-b-2 px-3 py-2 transition-colors ${
+                      activeTab === "checks" ? "border-acid text-acid" : "border-transparent text-paper/60 hover:text-paper"
+                    }`}
+                  >
+                    14 ATS Checks ({scanResult.report.checks.filter((c) => c.pass).length}/14)
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("extracted")}
+                    className={`border-b-2 px-3 py-2 transition-colors ${
+                      activeTab === "extracted" ? "border-acid text-acid" : "border-transparent text-paper/60 hover:text-paper"
+                    }`}
+                  >
+                    Extracted Data Preview
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("matcher")}
+                    className={`border-b-2 px-3 py-2 transition-colors ${
+                      activeTab === "matcher" ? "border-acid text-acid" : "border-transparent text-paper/60 hover:text-paper"
+                    }`}
+                  >
+                    Job Keyword Matcher {matchPercentage !== null && `(${matchPercentage}%)`}
+                  </button>
+                </div>
+
+                {/* Tab 1: 14 ATS Checks */}
+                {activeTab === "checks" && (
+                  <div className="max-h-64 space-y-2.5 overflow-y-auto pr-1">
+                    {scanResult.report.checks.map((c) => (
+                      <div
+                        key={c.label}
+                        className="flex items-start justify-between gap-3 border-b border-paper/10 pb-2 text-xs"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span
+                            className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center border ${
+                              c.pass ? "border-acid text-acid" : "border-coral text-coral"
+                            }`}
+                          >
+                            <Icon name={c.pass ? "check" : "x"} size={10} />
+                          </span>
+                          <div>
+                            <p className="font-bold text-paper">{c.label}</p>
+                            <p className="text-[11px] text-paper/60">{c.detail}</p>
+                          </div>
+                        </div>
+                        <span className="font-mono text-[10px] text-paper/40">+{c.weight}pts</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Tab 2: Extracted Data */}
+                {activeTab === "extracted" && (
+                  <div className="max-h-64 space-y-3 overflow-y-auto pr-1 text-xs">
+                    <div className="border border-paper/10 bg-paper/5 p-2.5">
+                      <p className="font-mono text-[10px] uppercase text-acid">Contact Details</p>
+                      <p className="font-semibold text-paper mt-0.5">
+                        {scanResult.resume.contact.email || "No email detected"} ·{" "}
+                        {scanResult.resume.contact.phone || "No phone detected"} ·{" "}
+                        {scanResult.resume.contact.location || "No location detected"}
+                      </p>
+                    </div>
+
+                    {scanResult.resume.summary && (
+                      <div className="border border-paper/10 bg-paper/5 p-2.5">
+                        <p className="font-mono text-[10px] uppercase text-acid">Summary</p>
+                        <p className="mt-1 line-clamp-3 text-paper/80">{scanResult.resume.summary}</p>
+                      </div>
+                    )}
+
+                    <div className="border border-paper/10 bg-paper/5 p-2.5">
+                      <p className="font-mono text-[10px] uppercase text-acid">
+                        Work Experience ({scanResult.resume.experience.length} roles)
+                      </p>
+                      <div className="mt-1.5 space-y-2">
+                        {scanResult.resume.experience.map((exp, idx) => (
+                          <div key={idx} className="border-b border-paper/10 pb-1.5 last:border-0">
+                            <p className="font-bold text-paper">
+                              {exp.role || "Role"} · <span className="font-normal text-paper/70">{exp.company}</span>{" "}
+                              <span className="font-mono text-[10px] text-acid">
+                                ({exp.start || "?"} – {exp.end || "Present"})
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-paper/60">
+                              {exp.bullets.length} bullets ({exp.bullets.filter((b) => /\d|%|\$/.test(b)).length} with
+                              metrics)
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {scanResult.resume.skills.length > 0 && (
+                      <div className="border border-paper/10 bg-paper/5 p-2.5">
+                        <p className="font-mono text-[10px] uppercase text-acid">
+                          Skills Identified ({scanResult.resume.skills.length})
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {scanResult.resume.skills.map((s, idx) => (
+                            <span
+                              key={idx}
+                              className="border border-paper/20 bg-paper/10 px-2 py-0.5 font-mono text-[10.5px] text-paper"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tab 3: Keyword Matcher */}
+                {activeTab === "matcher" && (
+                  <div className="space-y-3 text-xs">
+                    <p className="text-[11px] text-paper/70">
+                      Paste the target job description to match against your resume's vocabulary:
+                    </p>
+                    <textarea
+                      value={jobDescription}
+                      onChange={(e) => setJobDescription(e.target.value)}
+                      placeholder="Paste target job posting here (e.g., 'Looking for a Senior Software Engineer with experience in React, TypeScript, Cloud Run, CI/CD, Agile leadership...')..."
+                      rows={3}
+                      className="w-full border border-paper/30 bg-paper/5 p-2 font-mono text-xs text-paper placeholder:text-paper/40 focus:border-acid focus:outline-none"
+                    />
+
+                    {jobKeywords.length > 0 ? (
+                      <div>
+                        <div className="flex items-center justify-between font-mono text-[11px]">
+                          <span>Keyword Match Rate</span>
+                          <span className="font-bold text-acid">{matchPercentage}% Match</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {matchedKeywords.map((k) => (
+                            <span
+                              key={k.term}
+                              className={`flex items-center gap-1 border px-2 py-0.5 font-mono text-[10.5px] ${
+                                k.present
+                                  ? "border-acid bg-acid/20 text-acid font-bold"
+                                  : "border-coral/50 bg-coral/10 text-coral line-through"
+                              }`}
+                            >
+                              <Icon name={k.present ? "check" : "x"} size={10} />
+                              {k.term}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="font-mono text-[11px] text-paper/50">
+                        Paste 2+ sentences of a job posting above to compute real-time keyword coverage.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Primary Action Buttons */}
+                <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-paper/15 pt-4">
+                  <button
+                    onClick={handleImportToBuilder}
+                    className="hs-sm flex-1 inline-flex items-center justify-center gap-2 border-2 border-acid bg-acid px-5 py-3 text-sm font-bold text-ink transition-all hover:-translate-y-0.5 shadow-[4px_4px_0_0_rgba(0,0,0,0.5)]"
+                  >
+                    <span>Import & Edit in Builder</span>
+                    <Icon name="arrow" size={16} />
+                  </button>
+
+                  <Link
+                    to="/ats-checker"
+                    className="hs-sm inline-flex items-center gap-1.5 border border-paper/30 bg-paper/5 px-4 py-3 text-xs font-bold text-paper transition-colors hover:border-paper"
+                  >
+                    <span>Full ATS Suite</span>
+                    <Icon name="arrow" size={13} />
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              /* DEFAULT DROPZONE & BENCHMARK */
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                className={`mt-4 flex cursor-pointer flex-col items-center justify-center border-2 border-dashed p-8 text-center transition-all ${
+                  isDragging
+                    ? "border-acid bg-acid/10 scale-[1.01]"
+                    : "border-paper/30 hover:border-acid hover:bg-paper/5"
+                }`}
+              >
+                <div className="grid h-14 w-14 place-items-center border-2 border-acid/80 bg-acid/10 text-acid">
+                  <Icon name="upload" size={26} />
+                </div>
+                <h4 className="mt-4 font-display text-lg font-bold text-paper">
+                  Drop your resume here (PDF or DOCX)
+                </h4>
+                <p className="mt-1.5 max-w-sm text-xs text-paper/70">
+                  Supports <strong>.pdf</strong>, <strong>.docx</strong>, <strong>.doc</strong>, and <strong>.txt</strong>.
+                  Dual extraction parses all career experience, metrics, and skills into ATS format.
+                </p>
+
+                <div className="mt-4 inline-flex items-center gap-2 border border-acid bg-acid px-4 py-2 text-xs font-bold text-ink">
+                  <Icon name="sparkle" size={14} />
+                  <span>Click to Browse Files</span>
+                </div>
+
+                <div className="mt-6 flex items-center gap-3 border-t border-paper/15 pt-4 text-[11px] font-mono text-paper/60">
+                  <span className="flex items-center gap-1">
+                    <Icon name="shield" size={12} className="text-acid" /> 100% Client-Side Privacy
+                  </span>
+                  <span>·</span>
+                  <span>Instant 14-Rule Scoring</span>
+                </div>
+              </div>
+            )}
           </div>
         </Reveal>
       </div>
@@ -393,82 +887,6 @@ function Faq() {
 }
 
 export default function Home() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const atsFileInputRef = useRef<HTMLInputElement>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importSuccess, setImportSuccess] = useState(false);
-
-  const handlePdfImport = async (e: ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (!uploadedFile) return;
-
-    // Validate file type - support PDF and DOCX
-    const isPdf = uploadedFile.name.endsWith('.pdf');
-    const isDocx = uploadedFile.name.endsWith('.docx') || uploadedFile.name.endsWith('.doc');
-    
-    if (!isPdf && !isDocx) {
-      alert('Please upload a PDF or DOCX file');
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      let text = '';
-      
-      if (isPdf) {
-        // Parse PDF file
-        const result = await parsePdfFile(uploadedFile);
-        text = result.text;
-      } else {
-        // For DOCX files, we'll need to read as text (basic support)
-        // In production, you'd use a library like mammoth.js for proper DOCX parsing
-        text = await uploadedFile.text();
-        // Basic cleanup for DOCX text
-        text = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-      
-      // Parse CV into structured resume data
-      const parsed = parseCVToResume(text);
-      
-      // Get existing resume from localStorage or create new one
-      const existingResumeStr = localStorage.getItem('rb_resume_v1');
-      const existingResume: ResumeData | null = existingResumeStr ? JSON.parse(existingResumeStr) : null;
-      
-      // Create empty resume as fallback
-      const emptyResume: ResumeData = {
-        id: Math.random().toString(36).slice(2, 10),
-        roleSlug: null,
-        contact: { fullName: '', title: '', email: '', phone: '', location: '', website: '', linkedin: '' },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: [],
-        languages: [],
-        certifications: [],
-        template: 'merit',
-        accent: '#17594a'
-      };
-      
-      // Merge parsed data with existing or empty resume
-      const merged = mergeCVWithResume(parsed, existingResume || emptyResume);
-      
-      // Save to localStorage
-      localStorage.setItem('rb_resume_v1', JSON.stringify(merged));
-      
-      // Show success message
-      setImportSuccess(true);
-      setTimeout(() => setImportSuccess(false), 5000);
-      
-      // Redirect to builder
-      window.location.href = '/builder';
-    } catch (err) {
-      console.error('Import error:', err);
-      alert('Failed to import CV. Please try again.');
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
   return (
     <>
       <Seo
@@ -486,11 +904,7 @@ export default function Home() {
       />
       <Hero />
       <Ticker />
-      <AtsSection 
-        atsFileInputRef={atsFileInputRef}
-        isImporting={isImporting}
-        handlePdfImport={handlePdfImport}
-      />
+      <AtsSection />
       <ExamplesIndex />
       <CountriesStrip />
       <HowItWorks />

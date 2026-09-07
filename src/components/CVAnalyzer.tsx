@@ -1,6 +1,6 @@
 import { useState, useCallback, type ChangeEvent } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle, Info, TrendingUp, Target, BookOpen, Zap, Edit3, ArrowRight } from 'lucide-react';
-import { parseDocxFile, parsePdfFile, analyzeCV, ATSAnalysis } from '../lib/cv-analyzer';
+import { extractTextFromCVFile, analyzeCV, ATSAnalysis } from '../lib/cv-analyzer';
 import { parseCVToResume, mergeCVWithResume } from '../lib/cv-parser';
 import type { ResumeData } from '../lib/types';
 
@@ -73,17 +73,8 @@ export function CVAnalyzer() {
     setIsAnalyzing(true);
 
     try {
-      let text = '';
-      
-      if (uploadedFile.name.endsWith('.docx')) {
-        const result = await parseDocxFile(uploadedFile);
-        text = result.text;
-      } else if (uploadedFile.name.endsWith('.pdf')) {
-        const result = await parsePdfFile(uploadedFile);
-        text = result.text;
-      } else {
-        throw new Error('Unsupported file format');
-      }
+      const extracted = await extractTextFromCVFile(uploadedFile);
+      const text = extracted.text;
 
       // Parse CV into structured resume data
       const parsed = parseCVToResume(text);
@@ -91,7 +82,7 @@ export function CVAnalyzer() {
       
       // Analyze the CV
       const result = analyzeCV(text, jobDescription || undefined);
-      result.formatting.fileFormat = uploadedFile.name.endsWith('.docx') ? 'docx' : 'pdf';
+      result.formatting.fileFormat = extracted.format === 'docx' ? 'docx' : 'pdf';
       
       setAnalysis(result);
     } catch (err) {
@@ -109,22 +100,15 @@ export function CVAnalyzer() {
     try {
       // Re-parse and analyze with job description
       const analyzeAgain = async () => {
-        let text = '';
-        
-        if (file.name.endsWith('.docx')) {
-          const result = await parseDocxFile(file);
-          text = result.text;
-        } else {
-          const result = await parsePdfFile(file);
-          text = result.text;
-        }
-
-        const result = analyzeCV(text, jobDescription || undefined);
-        result.formatting.fileFormat = file.name.endsWith('.docx') ? 'docx' : 'pdf';
+        const extracted = await extractTextFromCVFile(file);
+        const result = analyzeCV(extracted.text, jobDescription || undefined);
+        result.formatting.fileFormat = extracted.format === 'docx' ? 'docx' : 'pdf';
         setAnalysis(result);
       };
       
       analyzeAgain();
+    } catch (err) {
+      console.error('Reanalyze error:', err);
     } finally {
       setIsAnalyzing(false);
     }

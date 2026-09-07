@@ -653,17 +653,6 @@ export const DICT: Record<string, Record<LanguageCode, string>> = {
     zh: "查看所有国家指南 →",
     ja: "すべての国を見る →",
   },
-  "countries.photo": {
-    en: "photo:",
-    hi: "फोटो:",
-    es: "foto:",
-    fr: "photo :",
-    de: "Foto:",
-    pt: "foto:",
-    ar: "الصورة:",
-    zh: "照片:",
-    ja: "写真:",
-  },
 
   // How It Works
   "how.kicker": {

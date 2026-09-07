@@ -142,6 +142,83 @@ export function resumeToHtml(r: ResumeData, forDocx = false): string {
       .role { font-size: 11.5pt; font-weight: bold; }
       .company { color: ${r.accent}; font-weight: 600; }
       li { margin-left: 0; font-size: 10.5pt; }
+    `,
+    modern: `
+      h1 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 24pt; font-weight: 800; margin: 0; color: #111; }
+      h2 { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: ${r.accent}; border-left: 4px solid ${r.accent}; padding-left: 6pt; margin-top: 16pt; }
+      .title { color: ${r.accent}; font-weight: 600; font-size: 12pt; }
+      .contact { font-size: 9.5pt; color: #555; }
+      li { margin-left: 8pt; }
+    `,
+    classic: `
+      h1 { font-family: 'Times New Roman', serif; font-size: 24pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; margin: 0; }
+      h2 { font-family: 'Times New Roman', serif; font-size: 11pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.18em; border-bottom: 1px solid #444; padding-bottom: 3pt; margin-top: 16pt; }
+      .title { color: ${r.accent}; font-weight: 600; font-size: 11pt; text-align: center; }
+      .contact { font-size: 9pt; color: #555; text-align: center; }
+      li { margin-left: 14pt; }
+    `,
+    elegant: `
+      h1 { font-family: 'Georgia', serif; font-size: 22pt; font-weight: 300; text-transform: uppercase; letter-spacing: 0.2em; margin: 0; }
+      h2 { font-family: 'Georgia', serif; font-size: 10pt; font-weight: normal; text-transform: uppercase; letter-spacing: 0.28em; color: #666; margin-top: 18pt; border-bottom: 1px solid #eee; padding-bottom: 3pt; }
+      .title { color: ${r.accent}; font-style: italic; font-size: 11pt; }
+      .contact { font-size: 9pt; color: #666; }
+      li { margin-left: 10pt; }
+    `,
+    professional: `
+      h1 { font-family: Arial, sans-serif; font-size: 24pt; font-weight: 900; margin: 0; }
+      h2 { font-family: Arial, sans-serif; font-size: 10.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; background: ${r.accent}; color: white; padding: 3pt 8pt; display: inline-block; margin-top: 16pt; }
+      .title { color: #333; font-weight: bold; font-size: 11.5pt; }
+      .contact { font-size: 9pt; color: #555; }
+      li { margin-left: 10pt; }
+    `,
+    minimal: `
+      h1 { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 26pt; font-weight: 800; margin: 0; }
+      h2 { font-family: 'Courier New', monospace; font-size: 9.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: #333; margin-top: 16pt; }
+      .title { color: #555; font-size: 11pt; }
+      .contact { font-size: 9pt; color: #777; }
+      li { margin-left: 8pt; }
+    `,
+    bold: `
+      h1 { font-family: Arial, sans-serif; font-size: 28pt; font-weight: 900; color: ${r.accent}; margin: 0; }
+      h2 { font-family: Arial, sans-serif; font-size: 11.5pt; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em; color: #111; border-left: 5px solid ${r.accent}; padding-left: 6pt; margin-top: 18pt; }
+      .title { background: ${r.accent}; color: white; display: inline-block; padding: 2pt 6pt; font-weight: bold; font-size: 10.5pt; }
+      .contact { font-size: 9.5pt; color: #444; }
+      li { margin-left: 8pt; }
+    `,
+    creative: `
+      h1 { font-family: 'Trebuchet MS', sans-serif; font-size: 26pt; font-weight: 900; margin: 0; }
+      h2 { font-family: 'Trebuchet MS', sans-serif; font-size: 11pt; font-weight: bold; text-transform: uppercase; color: ${r.accent}; margin-top: 16pt; }
+      .title { color: ${r.accent}; font-weight: bold; font-size: 11pt; }
+      .contact { font-size: 9pt; color: #666; }
+      li { margin-left: 8pt; }
+    `,
+    executive: `
+      h1 { font-family: 'Georgia', serif; font-size: 24pt; font-weight: bold; margin: 0; }
+      h2 { font-family: 'Georgia', serif; font-size: 10.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2em; color: #222; border-bottom: 2px solid #222; padding-bottom: 3pt; margin-top: 18pt; }
+      .title { color: ${r.accent}; font-weight: bold; font-size: 11pt; }
+      .contact { font-size: 9pt; color: #555; }
+      li { margin-left: 12pt; }
+    `,
+    academic: `
+      h1 { font-family: 'Times New Roman', serif; font-size: 24pt; font-weight: bold; text-align: center; margin: 0; }
+      h2 { font-family: 'Times New Roman', serif; font-size: 11.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: ${r.accent}; border-bottom: 1px solid #777; padding-bottom: 2pt; margin-top: 16pt; }
+      .title { font-family: 'Times New Roman', serif; font-style: italic; text-align: center; font-size: 11.5pt; }
+      .contact { font-size: 9.5pt; color: #444; text-align: center; }
+      li { margin-left: 14pt; }
+    `,
+    tech: `
+      h1 { font-family: 'Courier New', monospace; font-size: 22pt; font-weight: bold; margin: 0; }
+      h2 { font-family: 'Courier New', monospace; font-size: 10pt; font-weight: bold; text-transform: uppercase; color: ${r.accent}; margin-top: 16pt; }
+      .title { font-family: 'Courier New', monospace; color: ${r.accent}; font-weight: bold; font-size: 11pt; }
+      .contact { font-family: 'Courier New', monospace; font-size: 9pt; color: #555; }
+      li { font-family: 'Courier New', monospace; margin-left: 8pt; }
+    `,
+    corporate: `
+      h1 { font-family: Arial, sans-serif; font-size: 24pt; font-weight: bold; text-transform: uppercase; margin: 0; }
+      h2 { font-family: Arial, sans-serif; font-size: 10.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.15em; color: ${r.accent}; border-bottom: 1.5px solid ${r.accent}; padding-bottom: 3pt; margin-top: 16pt; }
+      .title { color: ${r.accent}; font-weight: 600; font-size: 11pt; }
+      .contact { font-size: 9.5pt; color: #555; }
+      li { margin-left: 10pt; }
     `
   };
   
@@ -243,6 +320,96 @@ export function downloadBlob(content: string, filename: string, type: string) {
 
 export function downloadDocx(r: ResumeData) {
   downloadBlob(resumeToHtml(r, true), `${slugify(r.contact.fullName || "resume")}.doc`, "application/msword");
+}
+
+export function coverLetterToHtml(
+  r: ResumeData,
+  company = "",
+  role = "",
+  manager = "Hiring Manager",
+  customBody?: string,
+  forWord = false
+): string {
+  const c = r.contact;
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean).map(esc).join("  |  ");
+  const date = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const targetRole = role || c.title || "the open role";
+  const targetCompany = company || "your company";
+  const firstXp = r.experience.find((e) => e.role);
+  const bestMetric = firstXp?.bullets.find((b) => /\d/.test(b));
+  const topSkills = r.skills.slice(0, 5).join(", ");
+
+  const paragraphs = customBody
+    ? customBody.split("\n\n").filter(Boolean).map(esc)
+    : [
+        `I am writing to express my strong interest in the ${esc(targetRole)} position at ${esc(targetCompany)}. With a proven track record as ${firstXp ? `${esc(firstXp.role)} at ${esc(firstXp.company)}` : esc(c.title || "a dedicated professional")}, I have built my career around driving measurable impact, delivering high-performance results, and solving complex problems with agility.`,
+        bestMetric
+          ? `Throughout my career, I have consistently prioritized measurable business outcomes. In my most recent role, I ${esc(bestMetric.charAt(0).toLowerCase() + bestMetric.slice(1).replace(/\.$/, ""))}. Leveraging core competencies in ${esc(topSkills || "key technical and strategic disciplines")}, I bring hands-on execution and the leadership required to hit the ground running.`
+          : `Throughout my career, I have consistently prioritized tangible business outcomes and collaborative execution. Leveraging core competencies in ${esc(topSkills || "industry best practices")}, I bring hands-on execution, cross-functional communication, and strategic problem-solving to every initiative.`,
+        `What particularly excites me about ${esc(targetCompany)} is your team's reputation for high standards and forward-thinking innovation. I am eager to apply my background in ${esc(c.title || "this field")} to help accelerate your upcoming quarterly and annual milestones.`,
+        `Thank you for your time and consideration. I would welcome the opportunity to discuss how my qualifications, technical skills, and leadership style directly align with the goals of ${esc(targetCompany)}. I look forward to hearing from you.`,
+      ];
+
+  const wordHeader = forWord
+    ? `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'><title>${esc(c.fullName || "Cover Letter")}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>
+@page { size: 8.5in 11in; margin: 0.75in; }
+body { font-family: 'Calibri', sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; margin: 0; }
+h1 { font-size: 22pt; margin: 0; color: ${r.accent}; }
+.title { font-size: 12pt; color: #555; margin-top: 4pt; }
+.contact { font-size: 9.5pt; color: #777; margin-top: 6pt; }
+.meta { margin-top: 24pt; margin-bottom: 18pt; font-size: 11pt; }
+.subject { font-weight: bold; margin-bottom: 14pt; color: ${r.accent}; }
+p { margin: 0 0 12pt 0; }
+</style>
+</head>
+<body>`
+    : "";
+
+  const wordFooter = forWord ? "</body></html>" : "";
+
+  return `${wordHeader}
+<div style="font-family: sans-serif; padding: 20pt; max-width: 650pt; margin: 0 auto; line-height: 1.6;">
+  <h1 style="color: ${r.accent}; font-size: 22pt; margin: 0;">${esc(c.fullName || "Your Name")}</h1>
+  ${c.title ? `<div class="title" style="font-weight: 600; color: #555; margin-top: 3pt;">${esc(c.title)}</div>` : ""}
+  <div class="contact" style="font-size: 9.5pt; color: #777; margin-top: 6pt;">${contactLine}</div>
+  <hr style="border: 0; border-top: 1.5pt solid ${r.accent}; margin: 16pt 0;" />
+  <div class="meta" style="font-size: 10.5pt; color: #333; margin-bottom: 16pt;">
+    <div style="float: right; color: #666;">${date}</div>
+    <div style="font-weight: bold;">${esc(manager || "Hiring Manager")}</div>
+    <div>${esc(company || "Target Company")}</div>
+    <div style="clear: both;"></div>
+  </div>
+  <div class="subject" style="font-weight: bold; margin-bottom: 12pt; color: ${r.accent}; font-size: 11pt;">
+    Re: Application for ${esc(targetRole)}
+  </div>
+  <div style="font-weight: bold; margin-bottom: 12pt;">Dear ${esc(manager || "Hiring Manager")},</div>
+  ${paragraphs.map((p) => `<p style="margin-bottom: 12pt; font-size: 10.5pt; text-align: justify;">${p}</p>`).join("")}
+  <div style="margin-top: 24pt;">
+    <div>Sincerely,</div>
+    <div style="font-weight: bold; font-size: 12pt; margin-top: 8pt; color: #111;">${esc(c.fullName || "Your Name")}</div>
+    ${c.title ? `<div style="font-size: 10pt; color: ${r.accent};">${esc(c.title)}</div>` : ""}
+  </div>
+</div>
+${wordFooter}`;
+}
+
+export function downloadCoverLetterDocx(
+  r: ResumeData,
+  company: string,
+  role: string,
+  manager: string,
+  customBody?: string
+) {
+  downloadBlob(
+    coverLetterToHtml(r, company, role, manager, customBody, true),
+    `${slugify(r.contact.fullName || "cover-letter")}-cover-letter.doc`,
+    "application/msword"
+  );
 }
 
 export function downloadTxt(r: ResumeData) {

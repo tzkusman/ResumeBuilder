@@ -1,11 +1,13 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, useRef, useEffect, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon, Reveal, Seo, Kicker, Chip } from "../components/ui";
 import ResumeDoc from "../components/ResumeDoc";
+import CoverLetterDoc from "../components/CoverLetterDoc";
 import { useResume, useAuth, useToast, PLANS, FREE_EXPORTS, type PlanId } from "../store/AppStore";
 import { ACCENTS, resumeFromProfession, type TemplateId } from "../lib/types";
 import { getProfession } from "../data/professions";
-import { decodeShare, downloadBlob, resumeToText } from "../lib/utils";
+import { decodeShare, downloadBlob, resumeToText, printPdf, downloadCoverLetterDocx } from "../lib/utils";
 import { track, trackPurchase } from "../lib/analytics";
 import { isSupabaseConfigured } from "../lib/supabase";
 
@@ -13,8 +15,19 @@ import { isSupabaseConfigured } from "../lib/supabase";
 const TEMPLATE_META: { id: TemplateId; name: string; tag: string; desc: string }[] = [
   { id: "merit", name: "Merit", tag: "Most popular · ATS-safe", desc: "The recruiter-proof default. Single column, mono section labels, heavy on whitespace and scannable bullets." },
   { id: "atlas", name: "Atlas", tag: "ATS-safe · compact", desc: "A tight, modern sheet with an accent bar and dot-separated skills. Fits 8+ years on one page." },
-  { id: "ledger", name: "Ledger", tag: "Visual · sidebar", desc: "A colored sidebar for skills and education. Great for hand-delivered CVs; our ATS engine flags it for online applications." },
-  { id: "craft", name: "Craft", tag: "Serif · academic", desc: "Centered serif header for academia, research and traditional firms that still read top-to-bottom." },
+  { id: "ledger", name: "Ledger", tag: "Visual · sidebar", desc: "A colored sidebar for skills and education. Great for hand-delivered CVs and recruiter screening." },
+  { id: "craft", name: "Craft", tag: "Serif · academic", desc: "Centered serif header for academia, research, law, and traditional firms that read top-to-bottom." },
+  { id: "modern", name: "Modern", tag: "Contemporary · card header", desc: "Clean geometric typography with subtle pill tags, role highlights, and contemporary card styling." },
+  { id: "classic", name: "Classic", tag: "Timeless · double rule", desc: "Traditional serif format with double hairline rules, formal letterhead, and balanced institutional elegance." },
+  { id: "elegant", name: "Elegant", tag: "Editorial · luxury", desc: "Lightweight editorial typography framed by a sleek vertical margin accent rule. Ideal for leadership and design." },
+  { id: "professional", name: "Professional", tag: "Corporate · solid badge", desc: "Solid accent block badges for section headers with authoritative corporate structure and high readability." },
+  { id: "minimal", name: "Minimal", tag: "Swiss · numbered", desc: "Understated Scandinavian numbered section hierarchy with high-contrast headlines and zero visual clutter." },
+  { id: "bold", name: "Bold", tag: "High-impact · banner", desc: "Full-width colored header banner commanding attention for competitive candidates and senior professionals." },
+  { id: "creative", name: "Creative", tag: "Design · modern pills", desc: "Asymmetric header badge, colorful skill tags, and expressive layout designed for creative disciplines." },
+  { id: "executive", name: "Executive", tag: "Leadership · C-suite", desc: "Distinguished monogram header badge with double-rule divisions tailored for Directors, VPs, and C-level roles." },
+  { id: "academic", name: "Academic", tag: "CV · research & grants", desc: "Comprehensive CV format featuring formal academic letterhead, research summaries, and publication history." },
+  { id: "tech", name: "Tech", tag: "Terminal · monospace", desc: "Code-inspired monospace styling with terminal prompt headers and developer tag badges for software engineers." },
+  { id: "corporate", name: "Corporate", tag: "Enterprise · Fortune 500", desc: "Polished corporate layout with structured metadata borders, executive precision, and formal business styling." },
 ];
 
 export function TemplatesPage() {
@@ -75,12 +88,33 @@ export function TemplatesPage() {
 
 /* ================= Cover Letter ================= */
 export function CoverLetterPage() {
-  const { resume } = useResume();
+  const { resume, setResume } = useResume();
   const { toast } = useToast();
   const [company, setCompany] = useState("");
   const [role, setRole] = useState(resume.contact.title);
   const [manager, setManager] = useState("Hiring Manager");
   const [why, setWhy] = useState("");
+  const [viewStyle, setViewStyle] = useState<"visual" | "text">("visual");
+  const [zoom, setZoom] = useState<number | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [autoScale, setAutoScale] = useState(0.7);
+
+  // ResizeObserver for auto-scaling visual A4 sheet
+  useEffect(() => {
+    if (!previewContainerRef.current) return;
+    const updateScale = () => {
+      if (!previewContainerRef.current) return;
+      const containerWidth = previewContainerRef.current.clientWidth - 32;
+      const s = Math.min(Math.max(containerWidth / 794, 0.4), 1.0);
+      setAutoScale(s);
+    };
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    ro.observe(previewContainerRef.current);
+    return () => ro.disconnect();
+  }, [viewStyle]);
+
+  const effectiveScale = zoom ?? autoScale;
   const firstXp = resume.experience.find((e) => e.role);
 
   const letter = useMemo(() => {
@@ -120,21 +154,98 @@ What I'm looking for: ${company ? `roles like ${role || "my next challenge"} at 
   const content = mode === "letter" ? letter : about;
   const inp = "w-full border border-ink/25 bg-white px-3 py-2.5 text-sm focus:border-pine focus:outline-none";
 
+  const handlePrint = () => {
+    track("resume_download", { format: "pdf_cover_letter", template: resume.template });
+    printPdf();
+  };
+
+  const handleDocx = () => {
+    track("resume_download", { format: "docx_cover_letter", template: resume.template });
+    downloadCoverLetterDocx(resume, company, role, manager, why);
+    toast("Cover Letter DOCX downloaded — formatted in your chosen template.", "ok");
+  };
+
   return (
     <>
-      <Seo title="Free Cover Letter & LinkedIn About Generator | ResumeBuild" description="Generate a tailored cover letter and a LinkedIn About section from the same profile data as your resume. One click to copy or download." path="/cover-letter" />
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <Reveal><Kicker className="text-pine">Same data, two more documents</Kicker></Reveal>
+      <Seo title="Free Cover Letter & LinkedIn About Generator — 15 Matching Templates | ResumeBuild" description="Generate a tailored cover letter and LinkedIn About matching any of our 15 resume templates with live A4 preview, PDF, DOCX, and TXT export." path="/cover-letter" />
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+        <Reveal><Kicker className="text-pine">15 Matching Cover Letter Templates</Kicker></Reveal>
         <Reveal delay={80}>
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <h1 className="mt-3 font-display text-4xl font-black sm:text-5xl">Cover letter &amp; LinkedIn, written off your resume.</h1>
+          <div className="flex flex-wrap items-end justify-between gap-5 mt-2">
+            <div>
+              <h1 className="font-display text-4xl font-black sm:text-5xl">Cover letter matching your CV template.</h1>
+              <p className="mt-2 text-base text-ink-soft max-w-2xl">Generated directly from your experience and skills. Switch across all 15 designs with matching layout, header styles, and accent colors.</p>
+            </div>
             <div className="flex border-2 border-ink">
               <button onClick={() => setMode("letter")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "letter" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>Cover letter</button>
               <button onClick={() => setMode("about")} className={`px-4 py-2 font-display text-sm font-black transition-colors ${mode === "about" ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}>LinkedIn About</button>
             </div>
           </div>
         </Reveal>
-        <div className="mt-10 grid gap-8 lg:grid-cols-2">
+
+        {/* Template & Ink Toolbar */}
+        {mode === "letter" && (
+          <div className="mt-8 border-2 border-ink bg-card p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-ink-soft">Template ({TEMPLATE_META.length})</span>
+                  <span className="text-xs font-bold text-pine">Active: {TEMPLATE_META.find(t => t.id === resume.template)?.name || resume.template}</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {TEMPLATE_META.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setResume((r) => ({ ...r, template: t.id }));
+                        track("template_select", { template: t.id });
+                        toast(`Cover letter theme switched to ${t.name}.`, "ok");
+                      }}
+                      className={`border px-2.5 py-1 text-xs font-bold transition-all ${resume.template === t.id ? "border-ink bg-ink text-acid" : "border-ink/25 text-ink-soft hover:border-ink hover:text-ink"}`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div>
+                  <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-wider text-ink-soft">Accent Ink</span>
+                  <div className="flex gap-1">
+                    {ACCENTS.map((a) => (
+                      <button
+                        key={a}
+                        onClick={() => setResume((r) => ({ ...r, accent: a }))}
+                        aria-label={`Color ${a}`}
+                        className={`h-5 w-5 border-2 transition-transform hover:scale-110 ${resume.accent === a ? "border-ink scale-110" : "border-transparent"}`}
+                        style={{ background: a }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-l border-ink/20 pl-4 flex gap-2">
+                  <button
+                    onClick={() => setViewStyle("visual")}
+                    className={`border px-3 py-1.5 text-xs font-bold transition-all ${viewStyle === "visual" ? "border-ink bg-ink text-acid" : "border-ink/25 text-ink-soft"}`}
+                  >
+                    A4 Sheet
+                  </button>
+                  <button
+                    onClick={() => setViewStyle("text")}
+                    className={`border px-3 py-1.5 text-xs font-bold transition-all ${viewStyle === "text" ? "border-ink bg-ink text-acid" : "border-ink/25 text-ink-soft"}`}
+                  >
+                    Plain Text
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-[380px_1fr]">
+          {/* Controls Column */}
           <Reveal delay={120}>
             <div className="space-y-4 border-2 border-ink bg-card p-6">
               {mode === "letter" && (<>
@@ -152,24 +263,97 @@ What I'm looking for: ${company ? `roles like ${role || "my next challenge"} at 
                   <strong className="text-pine-deep">Generated from your live resume data</strong> — first-person voice, your strongest metric, and your top 6 skills. Edit your resume in the builder and this updates instantly.
                 </div>
               )}
-              <div className="flex flex-wrap gap-3 pt-1">
-                <button onClick={() => { navigator.clipboard?.writeText(content).catch(() => {}); track("cta_click", { label: `${mode}_copy` }); toast(`${mode === "letter" ? "Cover letter" : "LinkedIn About"} copied to clipboard.`, "ok"); }} className="hs-sm border-2 border-ink bg-acid px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5">Copy {mode === "letter" ? "letter" : "About"}</button>
-                <button onClick={() => { downloadBlobTxt(); }} className="border-2 border-ink px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 hover:bg-ink hover:text-acid"><Icon name="download" size={15} className="mr-1.5 inline" />Download .txt</button>
+              
+              <div className="border-t border-ink/15 pt-4 space-y-2">
+                <span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-ink-soft">Export &amp; Actions</span>
+                <div className="flex flex-wrap gap-2">
+                  {mode === "letter" && (
+                    <>
+                      <button onClick={handlePrint} className="hs-sm border-2 border-ink bg-acid px-3.5 py-2 text-xs font-bold transition-all hover:-translate-y-0.5">
+                        <Icon name="doc" size={13} className="mr-1 inline" /> PDF Print
+                      </button>
+                      <button onClick={handleDocx} className="border-2 border-ink px-3.5 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 hover:bg-ink hover:text-acid">
+                        <Icon name="edit" size={13} className="mr-1 inline" /> Word (.doc)
+                      </button>
+                    </>
+                  )}
+                  <button onClick={() => { downloadBlobTxt(); }} className="border-2 border-ink px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 hover:bg-ink hover:text-acid">
+                    <Icon name="download" size={13} className="mr-1 inline" /> .txt
+                  </button>
+                  <button onClick={() => { navigator.clipboard?.writeText(content).catch(() => {}); track("cta_click", { label: `${mode}_copy` }); toast(`${mode === "letter" ? "Cover letter" : "LinkedIn About"} copied to clipboard.`, "ok"); }} className="border border-ink/40 px-3 py-2 text-xs font-bold transition-all hover:border-ink">
+                    <Icon name="copy" size={13} className="mr-1 inline" /> Copy
+                  </button>
+                </div>
               </div>
-              <p className="font-mono text-[10.5px] text-ink-soft">Pulls your name, contact line and strongest quantified bullet automatically.</p>
+
+              <div className="border-t border-ink/10 pt-3">
+                <p className="font-mono text-[10.5px] text-ink-soft">Pulls your contact line, verified skills, and quantifiable achievements into all 15 matching templates.</p>
+                <Link to="/builder" className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-pine hover:underline">
+                  <Icon name="edit" size={12} /> Edit underlying resume data in Builder →
+                </Link>
+              </div>
             </div>
           </Reveal>
+
+          {/* Preview Column */}
           <Reveal delay={200}>
-            <div className="h-full border-2 border-ink bg-white p-8 shadow-[0_18px_50px_-22px_rgba(19,31,26,0.35)]">
-              <p className="mb-4 flex items-center justify-between border-b border-ink/15 pb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">
-                {mode === "letter" ? "Cover letter · ready to paste" : "LinkedIn About · 1st person"}
-                <span className="text-pine">{content.split(/\s+/).length} words</span>
-              </p>
-              <pre className="whitespace-pre-wrap font-body text-[13.5px] leading-relaxed">{content}</pre>
+            <div ref={previewContainerRef} className="space-y-3">
+              {mode === "letter" && viewStyle === "visual" ? (
+                <div>
+                  {/* Zoom controls */}
+                  <div className="mb-2 flex items-center justify-between border-2 border-ink bg-card px-3 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[10px] uppercase text-ink-soft">Zoom:</span>
+                      <button onClick={() => setZoom(Math.max((effectiveScale || 0.7) - 0.1, 0.35))} className="border border-ink/30 px-1.5 py-0.5 font-mono text-[11px] font-bold hover:border-ink">−</button>
+                      <span className="font-mono text-[11px] font-bold">{Math.round(effectiveScale * 100)}%</span>
+                      <button onClick={() => setZoom(Math.min((effectiveScale || 0.7) + 0.1, 1.2))} className="border border-ink/30 px-1.5 py-0.5 font-mono text-[11px] font-bold hover:border-ink">+</button>
+                      <button onClick={() => setZoom(null)} className="ml-2 border border-ink/30 px-2 py-0.5 font-mono text-[10px] font-bold hover:border-ink">Fit</button>
+                      <button onClick={() => setZoom(1.0)} className="border border-ink/30 px-2 py-0.5 font-mono text-[10px] font-bold hover:border-ink">100%</button>
+                    </div>
+                    <span className="font-mono text-[10px] text-ink-soft uppercase tracking-wider">A4 Sheet · Template: {resume.template}</span>
+                  </div>
+
+                  <div className="overflow-auto border-2 border-ink bg-neutral-100 p-4 shadow-[0_18px_50px_-22px_rgba(19,31,26,0.35)] flex justify-center">
+                    <div style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }} className="overflow-hidden transition-all duration-150 shadow-md">
+                      <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794, height: 1123 }}>
+                        <CoverLetterDoc
+                          data={resume}
+                          company={company}
+                          role={role}
+                          manager={manager}
+                          why={why}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full border-2 border-ink bg-white p-8 shadow-[0_18px_50px_-22px_rgba(19,31,26,0.35)]">
+                  <p className="mb-4 flex items-center justify-between border-b border-ink/15 pb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-soft">
+                    {mode === "letter" ? "Cover letter · plain text" : "LinkedIn About · 1st person"}
+                    <span className="text-pine">{content.split(/\s+/).length} words</span>
+                  </p>
+                  <pre className="whitespace-pre-wrap font-body text-[13.5px] leading-relaxed">{content}</pre>
+                </div>
+              )}
             </div>
           </Reveal>
         </div>
       </section>
+
+      {/* Print-only portal for cover letter printing when on /cover-letter */}
+      {createPortal(
+        <div id="print-root">
+          <CoverLetterDoc
+            data={resume}
+            company={company}
+            role={role}
+            manager={manager}
+            why={why}
+          />
+        </div>,
+        document.body
+      )}
     </>
   );
 
@@ -192,7 +376,7 @@ export function PricingPage() {
   const rows: [string, string, string][] = [
     ["Exports (PDF / DOCX / TXT)", `${FREE_EXPORTS} total after sign-up`, "Unlimited"],
     ["ATS score + 14-check report", "Included", "Included"],
-    ["All 4 ATS templates + accent inks", "Included", "Included"],
+    ["All 15 ATS templates + accent inks", "Included", "Included"],
     ["20 profession examples + prefill", "Included", "Included"],
     ["Country CV guides (16 markets)", "Included", "Included"],
     ["Shareable resume link", "Included", "Included"],

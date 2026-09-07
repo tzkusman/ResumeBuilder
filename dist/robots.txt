@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://resumebuild.vercel.app/sitemap.xml

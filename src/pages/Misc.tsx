@@ -114,6 +114,7 @@ export function TemplatesPage() {
   const { resume, setResume } = useResume();
   const { toast } = useToast();
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const activeCountry = params.get("country") || "all";
 
@@ -126,7 +127,8 @@ export function TemplatesPage() {
   const pick = (id: TemplateId) => {
     setResume((r) => ({ ...r, template: id }));
     track("template_select", { template: id });
-    toast(`${TEMPLATE_META.find((t) => t.id === id)?.name} applied to your resume.`, "ok");
+    toast(`${TEMPLATE_META.find((t) => t.id === id)?.name} applied! Opening live builder...`, "ok");
+    navigate(`/builder?template=${id}`);
   };
 
   const countryInfo = activeCountry !== "all" ? COUNTRY_TEMPLATE_RECOMMENDATIONS[activeCountry] : null;

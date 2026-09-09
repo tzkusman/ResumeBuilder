@@ -164,6 +164,9 @@ export function CountryPage() {
                 <Link to="/builder" className="mt-5 flex items-center justify-center gap-2 border-2 border-acid bg-acid px-4 py-3 font-bold text-ink transition-all hover:-translate-y-0.5">
                   {t("cta.openBuilder", "Open the builder")} <Icon name="arrow" size={16} />
                 </Link>
+                <Link to={`/templates?country=${c.code}`} className="mt-2.5 flex items-center justify-center gap-1.5 border border-paper/30 px-3 py-2 font-mono text-xs font-bold text-paper hover:bg-white/10 transition-colors">
+                  <span>{countryName} Compliant Templates →</span>
+                </Link>
               </div>
             </Reveal>
             <Reveal delay={200}>

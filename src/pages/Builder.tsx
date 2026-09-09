@@ -131,15 +131,24 @@ export default function Builder() {
     } catch {}
   };
 
-  /* Pre-fill from SEO pages: /builder?role=registered-nurse */
+  /* Pre-fill from SEO pages: /builder?role=registered-nurse or /builder?template=craft */
   useEffect(() => {
     const role = params.get("role");
     if (role && !bootRef.current) {
       bootRef.current = true;
       if (loadRole(role)) toast(`Loaded the ${getProfession(role)?.title} example — make it yours.`, "ok");
+    }
+    const templateParam = params.get("template");
+    if (templateParam) {
+      const match = TEMPLATES.find((t) => t.id === templateParam);
+      if (match) {
+        setResume((r) => ({ ...r, template: match.id }));
+      }
+    }
+    if (role || templateParam) {
       setParams({}, { replace: true });
     }
-  }, [params, loadRole, setParams, toast]);
+  }, [params, loadRole, setParams, setResume, toast]);
 
   /* Responsive preview scale */
   useEffect(() => {

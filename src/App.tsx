@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { BrowserRouter, HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import { AppProviders } from "./store/AppStore";
 import Home from "./pages/Home";
@@ -19,6 +19,17 @@ import { trackPageView } from "./lib/analytics";
 
 function RouteEffects() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Seamlessly transition legacy hash URLs (e.g. /#/ats-checker -> /ats-checker)
+    if (typeof window !== "undefined" && window.location.hash.startsWith("#/")) {
+      const target = window.location.hash.slice(1);
+      window.history.replaceState(null, "", target);
+      navigate(target, { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     trackPageView(pathname);
@@ -26,11 +37,10 @@ function RouteEffects() {
   return null;
 }
 
-// Clean SEO URLs on Vercel + local dev; hash routing keeps the app working
-// inside static preview sandboxes that serve index.html from a nested path.
-const host = typeof window !== "undefined" ? window.location.hostname : "";
-const useCleanUrls = host === "localhost" || host === "127.0.0.1" || host.endsWith("vercel.app");
-const Router = useCleanUrls ? BrowserRouter : HashRouter;
+// Clean SEO URLs on Vercel, Cloud Run, custom domains, and local dev;
+// Hash routing is only used when served directly as static file:// protocol.
+const isFileProto = typeof window !== "undefined" && window.location.protocol === "file:";
+const Router = isFileProto ? HashRouter : BrowserRouter;
 
 // Country-specific routes for programmatic SEO and localized experience
 const COUNTRY_CODES = ["us", "gb", "ca", "au", "de", "fr", "nl", "es", "ae", "sa", "pk", "in", "sg", "jp", "za", "br", "it", "mx", "ch", "ie", "nz"];

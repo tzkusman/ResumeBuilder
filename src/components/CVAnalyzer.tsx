@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, type ChangeEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Upload, FileText, CheckCircle, AlertCircle, Info, Target, Zap, ArrowRight, Printer, Sparkles } from "lucide-react";
 import { extractTextFromCVFile, analyzeCV, type ATSAnalysis } from "../lib/cv-analyzer";
 import { parseCVToResume, mergeCVWithResume } from "../lib/cv-parser";
-import { useToast } from "../store/AppStore";
-import type { ResumeData } from "../lib/types";
+import { useToast, useResume } from "../store/AppStore";
+import { emptyResume, type ResumeData } from "../lib/types";
 
 const SAMPLE_RESUME_TEXT = `Jane Doe
 Senior Full-Stack Engineer
@@ -32,7 +32,9 @@ B.S. in Computer Science | University of California, Berkeley | 2018
 `;
 
 export function CVAnalyzer() {
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { resume: currentResume, replaceResume } = useResume();
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ATSAnalysis | null>(null);
@@ -42,30 +44,21 @@ export function CVAnalyzer() {
   const [issueFilter, setIssueFilter] = useState<"all" | "critical" | "warning" | "passed">("all");
 
   const importToBuilder = useCallback(() => {
-    if (!parsedResume) return;
-    const existingResumeStr = localStorage.getItem("rb_resume_v1");
-    const existingResume: ResumeData | null = existingResumeStr ? JSON.parse(existingResumeStr) : null;
-    const emptyResume: ResumeData = {
-      id: Math.random().toString(36).slice(2, 10),
-      roleSlug: null,
-      contact: { fullName: "", title: "", email: "", phone: "", location: "", website: "", linkedin: "" },
-      summary: "",
-      experience: [],
-      education: [],
-      skills: [],
-      languages: [],
-      certifications: [],
-      template: "merit",
-      accent: "#17594a",
-      pageCount: parsedResume.pageCount || 1,
-      projects: [],
-      volunteer: []
-    };
-    const merged = mergeCVWithResume(parsedResume, existingResume || emptyResume);
-    localStorage.setItem("rb_resume_v1", JSON.stringify(merged));
-    toast("Resume imported into live builder!", "ok");
-    window.location.href = "/builder";
-  }, [parsedResume, toast]);
+    if (parsedResume) {
+      const base = currentResume && currentResume.contact ? currentResume : emptyResume();
+      const merged = mergeCVWithResume(parsedResume, base);
+      replaceResume(merged);
+      try {
+        localStorage.setItem("rb_resume_v1", JSON.stringify(merged));
+      } catch {
+        // ignore storage errors
+      }
+      toast("Sample resume imported into live builder!", "ok");
+    } else {
+      toast("Opening live resume builder...", "ok");
+    }
+    navigate("/builder");
+  }, [parsedResume, currentResume, replaceResume, toast, navigate]);
 
   const runAnalysis = useCallback((text: string, format: "pdf" | "docx" | "txt", pageCount = 1) => {
     try {

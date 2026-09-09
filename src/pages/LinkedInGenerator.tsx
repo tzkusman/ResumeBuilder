@@ -446,6 +446,31 @@ Currently open to exciting conversations around senior roles and technical leade
                 ))}
               </div>
             </div>
+
+            {/* Direct Connect to Resume Builder & ATS Scanner */}
+            <div className="border-2 border-ink bg-ink p-6 text-paper hs-acid flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <span className="kicker text-acid">Ready to Sync with your CV?</span>
+                <h4 className="mt-1 font-display text-xl font-black">Transfer these keywords to your Master Resume</h4>
+                <p className="text-xs text-paper/70">
+                  Ensure your LinkedIn profile and resume tell the same quantified story for applicant tracking systems.
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Link
+                  to="/ats-checker"
+                  className="border border-paper/40 px-3.5 py-2.5 font-mono text-xs font-bold text-paper hover:bg-white/10 transition-colors"
+                >
+                  Run ATS Scanner
+                </Link>
+                <Link
+                  to="/builder"
+                  className="border-2 border-acid bg-acid px-4 py-2.5 font-display text-xs font-bold text-ink shadow-[3px_3px_0_0_#fff] hover:-translate-y-0.5 transition-transform"
+                >
+                  Open in Builder →
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>

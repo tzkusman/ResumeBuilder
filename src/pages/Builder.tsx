@@ -106,12 +106,30 @@ export default function Builder() {
   const [previewPage, setPreviewPage] = useState<"all" | 1 | 2>("all");
   const [showAts, setShowAts] = useState(false);
   const [jd, setJd] = useState("");
+  const [jdOpen, setJdOpen] = useState(false);
   const [jdAnalyzed, setJdAnalyzed] = useState<ReturnType<typeof matchKeywords> | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const previewWrap = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const bootRef = useRef(false);
+
+  // Restore saved target job description if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rb_target_jd");
+      if (saved && !jd) {
+        setJd(saved);
+      }
+    } catch {}
+  }, []);
+
+  const handleJdChange = (newJd: string) => {
+    setJd(newJd);
+    try {
+      localStorage.setItem("rb_target_jd", newJd);
+    } catch {}
+  };
 
   /* Pre-fill from SEO pages: /builder?role=registered-nurse */
   useEffect(() => {
@@ -140,6 +158,51 @@ export default function Builder() {
 
   const setXp = (id: string, patch: Partial<XpEntry>) =>
     set((r) => ({ ...r, experience: r.experience.map((e) => (e.id === id ? { ...e, ...patch } : e)) }));
+
+  // Dynamic real-time keyword analysis that recalculates as user edits resume
+  const liveKeywords = useMemo(() => {
+    if (!jd || jd.trim().length < 25) return null;
+    const kws = extractKeywords(jd, 16);
+    return matchKeywords(resume, kws);
+  }, [jd, resume]);
+
+  const insertKeywordToSkills = (term: string) => {
+    const formatted = term.replace(/\b\w/g, (c) => c.toUpperCase());
+    if (resume.skills.some((s) => s.toLowerCase() === term.toLowerCase())) {
+      toast(`"${formatted}" is already in your skills.`, "ok");
+      return;
+    }
+    set((r) => ({ ...r, skills: [...r.skills, formatted] }));
+    toast(`Inserted "${formatted}" into Skills!`, "ok");
+  };
+
+  const insertKeywordToExperienceBullet = (term: string) => {
+    if (!resume.experience.length) {
+      toast("Please add an experience entry first.", "warn");
+      return;
+    }
+    const formatted = term.replace(/\b\w/g, (c) => c.toUpperCase());
+    const targetXp = resume.experience[0];
+    const newBullet = `Leveraged ${formatted} to streamline operational execution and accelerate team roadmap deliverables by 25%.`;
+    setXp(targetXp.id, {
+      bullets: [...targetXp.bullets.filter(Boolean), newBullet]
+    });
+    toast(`Added achievement bullet featuring "${formatted}" to ${targetXp.role || "Experience"}!`, "ok");
+  };
+
+  const autoInsertAllMissingSkills = () => {
+    if (!liveKeywords) return;
+    const missing = liveKeywords
+      .filter((k) => !k.matched)
+      .map((k) => k.term.replace(/\b\w/g, (c) => c.toUpperCase()));
+    if (!missing.length) {
+      toast("All target keywords already matched!", "ok");
+      return;
+    }
+    const toAdd = missing.filter((m) => !resume.skills.some((s) => s.toLowerCase() === m.toLowerCase()));
+    set((r) => ({ ...r, skills: [...r.skills, ...toAdd] }));
+    toast(`Inserted ${toAdd.length} missing keywords into Skills!`, "ok");
+  };
 
   const analyze = () => {
     if (jd.trim().length < 40) { toast("Paste a fuller job description first (40+ characters).", "warn"); return; }
@@ -302,6 +365,148 @@ export default function Builder() {
       <div className="mx-auto grid max-w-[1500px] gap-6 px-4 py-6 lg:grid-cols-[440px_1fr]">
         {/* ------------ editor column ------------ */}
         <div className="space-y-4">
+          {/* Target Job & Real-Time Automated Keyword Insertion Assistant */}
+          <div className="border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)]">
+            <div className="flex items-center justify-between p-3 border-b border-ink/15 bg-paper/60">
+              <div className="flex items-center gap-2">
+                <Icon name="check" size={15} className="text-pine" />
+                <span className="font-display text-xs font-black text-ink uppercase tracking-wider">Target Job Keyword Assistant</span>
+                {liveKeywords && (
+                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 border ${
+                    liveKeywords.filter(k => k.matched).length / (liveKeywords.length || 1) >= 0.7
+                      ? "border-pine bg-acid-soft text-pine-deep"
+                      : "border-coral bg-coral/10 text-coral"
+                  }`}>
+                    {Math.round((liveKeywords.filter(k => k.matched).length / (liveKeywords.length || 1)) * 100)}% Match
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setJdOpen(!jdOpen)}
+                className="font-mono text-[10.5px] font-bold text-pine hover:underline flex items-center gap-1"
+              >
+                {jdOpen ? "Hide" : jd ? "Edit Target JD" : "+ Add Job Description"}
+                <Icon name="chev" size={11} className={`transition-transform ${jdOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            {/* Input Form when opened */}
+            {jdOpen && (
+              <div className="p-3 border-b border-ink/15 bg-white space-y-2">
+                <textarea
+                  value={jd}
+                  onChange={(e) => handleJdChange(e.target.value)}
+                  rows={3}
+                  className="w-full border border-ink/25 bg-white p-2 text-xs font-sans focus:border-pine focus:outline-none resize-none placeholder:text-ink-soft/60"
+                  placeholder="Paste target job posting text to extract keywords and trigger real-time ATS optimization..."
+                />
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    <span className="font-mono text-[9px] uppercase text-ink-soft self-center">Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleJdChange("Looking for a Senior Software Engineer with expertise in React, TypeScript, Node.js, AWS, Kubernetes, Docker, PostgreSQL, REST APIs, Microservices, and Agile CI/CD delivery.")}
+                      className="border border-ink/20 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-ink-soft hover:border-ink hover:text-ink"
+                    >
+                      Tech Role
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleJdChange("Seeking a Senior Product Manager to lead product discovery, roadmaps, cross-functional engineering execution, user research, OKRs, KPI metrics, SQL data analytics, and A/B testing.")}
+                      className="border border-ink/20 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-ink-soft hover:border-ink hover:text-ink"
+                    >
+                      Product Lead
+                    </button>
+                  </div>
+                  {jd && (
+                    <button
+                      type="button"
+                      onClick={() => handleJdChange("")}
+                      className="font-mono text-[9.5px] text-coral hover:underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Live Keyword Insertion Dashboard */}
+            {liveKeywords && (
+              <div className="p-3 space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-[10.5px] font-bold text-ink-soft">
+                    {liveKeywords.filter(k => k.matched).length} matched · {liveKeywords.filter(k => !k.matched).length} missing
+                  </span>
+                  {liveKeywords.some(k => !k.matched) && (
+                    <button
+                      type="button"
+                      onClick={autoInsertAllMissingSkills}
+                      className="border border-pine bg-acid px-2 py-0.5 font-mono text-[10px] font-bold text-ink hover:bg-acid-soft transition-colors"
+                    >
+                      ⚡ Auto-Insert Missing to Skills
+                    </button>
+                  )}
+                </div>
+
+                {/* Missing Keywords with 1-Click Insertion */}
+                {liveKeywords.filter(k => !k.matched).length > 0 && (
+                  <div>
+                    <span className="font-mono text-[9px] uppercase font-bold text-coral block mb-1">
+                      Missing Keywords (Click to Insert):
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {liveKeywords.filter(k => !k.matched).map((kw) => (
+                        <div
+                          key={kw.term}
+                          className="inline-flex items-center border border-coral/30 bg-coral/5 px-1.5 py-0.5 text-xs gap-1"
+                        >
+                          <span className="font-semibold text-coral text-[11px]">{kw.term}</span>
+                          <button
+                            type="button"
+                            onClick={() => insertKeywordToSkills(kw.term)}
+                            title="Insert into Skills section"
+                            className="border border-coral/40 bg-white px-1 font-mono text-[9px] font-bold text-ink hover:bg-acid hover:border-ink"
+                          >
+                            +Skill
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => insertKeywordToExperienceBullet(kw.term)}
+                            title="Insert as quantifiable achievement bullet in Experience"
+                            className="border border-coral/40 bg-white px-1 font-mono text-[9px] font-bold text-ink hover:bg-acid hover:border-ink"
+                          >
+                            +Bullet
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Matched Keywords */}
+                {liveKeywords.filter(k => k.matched).length > 0 && (
+                  <div>
+                    <span className="font-mono text-[9px] uppercase font-bold text-pine block mb-1">
+                      Matched in Live Resume:
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {liveKeywords.filter(k => k.matched).map((kw) => (
+                        <span
+                          key={kw.term}
+                          className="border border-pine/30 bg-acid-soft px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-pine-deep"
+                        >
+                          ✓ {kw.term}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-1.5 border-2 border-ink bg-ink p-1.5">
             {sections.map((s) => (
               <button key={s.id} onClick={() => setTab(s.id)} className={`px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${tab === s.id ? "bg-acid text-ink" : "text-paper/70 hover:text-paper"}`}>{s.label}</button>

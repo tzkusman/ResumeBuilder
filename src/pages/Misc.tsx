@@ -7,6 +7,7 @@ import CoverLetterDoc from "../components/CoverLetterDoc";
 import { useResume, useAuth, useToast, useI18n, PLANS, FREE_EXPORTS, type PlanId } from "../store/AppStore";
 import { ACCENTS, resumeFromProfession, type TemplateId } from "../lib/types";
 import { getProfession } from "../data/professions";
+import { COUNTRIES } from "../data/countries";
 import { decodeShare, downloadBlob, resumeToText, printPdf, downloadCoverLetterDocx } from "../lib/utils";
 import { track, trackPurchase } from "../lib/analytics";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -35,10 +36,87 @@ const TEMPLATE_META: { id: TemplateId; name: string; tag: string; desc: string }
   { id: "stellar", name: "Stellar", tag: "Dual-tone · narrative flow", desc: "Contemporary dual-tone layout with left telemetry skill panel and seamless narrative career history column." },
 ];
 
+const COUNTRY_TEMPLATE_RECOMMENDATIONS: Record<string, {
+  name: string;
+  docName: string;
+  recommendedTemplates: TemplateId[];
+  pages: string;
+  photoRule: string;
+  atsSummary: string;
+}> = {
+  us: {
+    name: "United States",
+    docName: "US Resume",
+    recommendedTemplates: ["merit", "atlas", "classic", "modern", "onyx", "minimal"],
+    pages: "1 page (<10 yrs) · 2 max",
+    photoRule: "Strictly Never (Anti-bias rules)",
+    atsSummary: "99% electronic ATS scanning. Single column, standard headings, heavy quantification with $ and %."
+  },
+  gb: {
+    name: "United Kingdom",
+    docName: "British CV",
+    recommendedTemplates: ["merit", "modern", "elegant", "professional", "corporate", "classic"],
+    pages: "2 pages standard",
+    photoRule: "Never (Equality Act liability)",
+    atsSummary: "Conventional headings ('Work Experience'), 3-line personal profile statement, A4 paper size."
+  },
+  de: {
+    name: "Germany & DACH",
+    docName: "Lebenslauf",
+    recommendedTemplates: ["ledger", "professional", "corporate", "summit", "classic"],
+    pages: "1–2 pages structured",
+    photoRule: "Traditional / Expected in professional format",
+    atsSummary: "Tabular reverse-chronology, precise dates (MM/YYYY), structured academic & work milestones."
+  },
+  ca: {
+    name: "Canada",
+    docName: "Canadian Resume",
+    recommendedTemplates: ["merit", "atlas", "modern", "classic", "nordic"],
+    pages: "1–2 pages",
+    photoRule: "Never (Human rights legislation)",
+    atsSummary: "Bilingual English/French keywords for public/Quebec roles; community/volunteer sections valued."
+  },
+  au: {
+    name: "Australia",
+    docName: "Australian CV",
+    recommendedTemplates: ["merit", "elegant", "modern", "corporate", "cascade"],
+    pages: "2–3 pages accepted",
+    photoRule: "Never required / discouraged",
+    atsSummary: "Comprehensive achievement evidence, explicit work rights statement (Citizen/PR/Visa)."
+  },
+  fr: {
+    name: "France & EU",
+    docName: "CV Français",
+    recommendedTemplates: ["modern", "minimal", "nordic", "elegant", "merit"],
+    pages: "Strict 1 page (up to mid-career)",
+    photoRule: "Optional / Common",
+    atsSummary: "Concise, clean typography, language proficiency levels (CEFR: B2, C1, C2) highlighted."
+  },
+  ae: {
+    name: "UAE & Gulf",
+    docName: "Middle East CV",
+    recommendedTemplates: ["bold", "summit", "executive", "modern", "merit"],
+    pages: "2 pages standard",
+    photoRule: "Commonly expected",
+    atsSummary: "Visa status, driving license, and language capabilities (English/Arabic) frequently parsed."
+  },
+  in: {
+    name: "India",
+    docName: "Indian CV / Resume",
+    recommendedTemplates: ["merit", "tech", "corporate", "cascade", "modern"],
+    pages: "1–2 pages",
+    photoRule: "Optional",
+    atsSummary: "Technical certifications, degree percentages/CGPA, and deep project technologies heavily indexed."
+  }
+};
+
 export function TemplatesPage() {
   const { resume, setResume } = useResume();
   const { toast } = useToast();
   const { t } = useI18n();
+  const [params, setParams] = useSearchParams();
+  const activeCountry = params.get("country") || "all";
+
   const sample = useMemo(() => {
     const s = resumeFromProfession(getProfession("marketing-manager")!);
     s.contact.fullName = resume.contact.fullName || s.contact.fullName;
@@ -51,41 +129,115 @@ export function TemplatesPage() {
     toast(`${TEMPLATE_META.find((t) => t.id === id)?.name} applied to your resume.`, "ok");
   };
 
+  const countryInfo = activeCountry !== "all" ? COUNTRY_TEMPLATE_RECOMMENDATIONS[activeCountry] : null;
+
+  const filteredTemplates = useMemo(() => {
+    if (!countryInfo) return TEMPLATE_META;
+    // Sort so recommended templates appear first with badges
+    return [...TEMPLATE_META].sort((a, b) => {
+      const aRec = countryInfo.recommendedTemplates.includes(a.id);
+      const bRec = countryInfo.recommendedTemplates.includes(b.id);
+      if (aRec && !bRec) return -1;
+      if (!aRec && bRec) return 1;
+      return 0;
+    });
+  }, [countryInfo]);
+
   return (
     <>
-      <Seo title="ATS-Safe Resume Templates — 4 Free Formats | ResumeBuild" description="Four resume templates engineered for parsing: Merit, Atlas, Ledger and Craft. Apply any template to your draft in one click and export free." path="/templates" />
+      <Seo
+        title={countryInfo ? `${countryInfo.name} ${countryInfo.docName} Templates (2026) | ResumeBuild` : "ATS-Safe Resume Templates — 20 Professional Formats | ResumeBuild"}
+        description={countryInfo ? `Best resume & CV templates calibrated for ${countryInfo.name}: ${countryInfo.pages}, photo rule: ${countryInfo.photoRule}, ATS-tested.` : "20 professional resume templates engineered for parsing: single column, modern, serif, academic, tech, and corporate. Apply to your draft in one click and export free."}
+        path="/templates"
+      />
       <section className="dotgrid border-b-2 border-ink">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
           <Reveal><Kicker className="text-pine">{t("templates.kicker", "Form follows parsing")}</Kicker></Reveal>
-          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black sm:text-6xl">{t("templates.title", "Templates that survive the robots.")}</h1></Reveal>
-          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">{t("templates.sub", "Every template below uses standard headings and real text — no tables, text boxes or icons where parsers choke. Apply one to your live draft instantly.")}</p></Reveal>
-        </div>
-      </section>
-      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <div className="grid gap-8 sm:grid-cols-2">
-          {TEMPLATE_META.map((tMeta, i) => (
-            <Reveal key={tMeta.id} delay={(i % 2) * 100}>
-              <div className={`group flex h-full flex-col border-2 border-ink bg-card transition-all hover:-translate-y-1 ${resume.template === tMeta.id ? "hs-acid" : "hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
-                <div className="overflow-hidden border-b-2 border-ink bg-line/40 p-4">
-                  <div className="mx-auto overflow-hidden border border-ink/25 bg-white transition-transform duration-300 group-hover:scale-[1.02]" style={{ width: 794 * 0.48, height: 1123 * 0.42 }}>
-                    <div className="origin-top-left" style={{ transform: "scale(0.48)", width: 794 }}>
-                      <div style={{ height: 1123 * 0.88 }}><ResumeDoc data={{ ...sample, template: tMeta.id, accent: ACCENTS[i % ACCENTS.length] }} /></div>
-                    </div>
-                  </div>
+          <Reveal delay={80}><h1 className="mt-4 max-w-3xl font-display text-4xl font-black sm:text-6xl">{countryInfo ? `${countryInfo.name} ${countryInfo.docName} Templates` : t("templates.title", "Templates that survive the robots.")}</h1></Reveal>
+          <Reveal delay={160}><p className="mt-5 max-w-2xl text-lg text-ink-soft">{countryInfo ? countryInfo.atsSummary : t("templates.sub", "Every template below uses standard headings and real text — no tables, text boxes or icons where parsers choke. Apply one to your live draft instantly.")}</p></Reveal>
+
+          {/* Country Selector Tabs */}
+          <div className="mt-8 border-t border-ink/15 pt-6">
+            <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-ink-soft block mb-3">
+              Filter by Country Standards & Hiring Customs:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setParams({})}
+                className={`px-3 py-1.5 font-mono text-xs font-bold transition-colors ${activeCountry === "all" ? "border-2 border-ink bg-ink text-acid" : "border border-ink/25 bg-card text-ink-soft hover:border-ink hover:text-ink"}`}
+              >
+                All 20 Templates
+              </button>
+              {Object.entries(COUNTRY_TEMPLATE_RECOMMENDATIONS).map(([code, c]) => (
+                <button
+                  key={code}
+                  onClick={() => setParams({ country: code })}
+                  className={`px-3 py-1.5 font-mono text-xs font-bold transition-colors ${activeCountry === code ? "border-2 border-ink bg-pine text-paper" : "border border-ink/25 bg-card text-ink-soft hover:border-ink hover:text-ink"}`}
+                >
+                  {c.name} ({c.docName})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Country Format Intelligence Card */}
+          {countryInfo && (
+            <div className="mt-6 border-2 border-ink bg-acid-soft p-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-pine">
+                    Recruiter Standards for {countryInfo.name}
+                  </span>
+                  <h2 className="font-display text-xl font-black text-ink mt-0.5">
+                    Target Format: {countryInfo.docName}
+                  </h2>
                 </div>
-                <div className="flex flex-1 flex-col p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="font-display text-2xl font-black">{tMeta.name}</h2>
-                    <Chip className={tMeta.tag.includes("ATS-safe") || tMeta.tag.includes("popular") ? "text-pine-deep" : "text-coral"}>{tMeta.tag}</Chip>
-                  </div>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-soft">{tMeta.desc}</p>
-                  <button onClick={() => pick(tMeta.id)} className={`mt-4 inline-flex items-center justify-center gap-2 border-2 px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 ${resume.template === tMeta.id ? "border-ink bg-ink text-acid" : "border-ink bg-acid text-ink"}`}>
-                    {resume.template === tMeta.id ? t("templates.applied", "Applied to your draft") : t("templates.use", "Use this template")} <Icon name={resume.template === tMeta.id ? "check" : "arrow"} size={15} />
-                  </button>
+                <div className="flex flex-wrap gap-2">
+                  <Chip className="bg-white border-ink">{countryInfo.pages}</Chip>
+                  <Chip className={countryInfo.photoRule.includes("Never") ? "text-coral bg-white" : "text-pine bg-white"}>Photo: {countryInfo.photoRule}</Chip>
+                  <Link to={`/countries/${activeCountry}`} className="border border-ink bg-white px-3 py-1 text-xs font-bold text-ink hover:bg-paper">
+                    Full {countryInfo.name} Guide →
+                  </Link>
                 </div>
               </div>
-            </Reveal>
-          ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        <div className="grid gap-8 sm:grid-cols-2">
+          {filteredTemplates.map((tMeta, i) => {
+            const isRecommendedForCountry = countryInfo?.recommendedTemplates.includes(tMeta.id);
+            return (
+              <Reveal key={tMeta.id} delay={(i % 2) * 100}>
+                <div className={`group flex h-full flex-col border-2 border-ink bg-card transition-all hover:-translate-y-1 ${resume.template === tMeta.id ? "hs-acid" : "hover:shadow-[6px_6px_0_0_var(--color-ink)]"}`}>
+                  <div className="overflow-hidden border-b-2 border-ink bg-line/40 p-4 relative">
+                    {isRecommendedForCountry && (
+                      <span className="absolute top-3 right-3 z-10 border border-pine bg-pine text-paper font-mono text-[10px] font-bold px-2 py-0.5 uppercase tracking-wider">
+                        ★ {countryInfo.name} Recommended
+                      </span>
+                    )}
+                    <div className="mx-auto overflow-hidden border border-ink/25 bg-white transition-transform duration-300 group-hover:scale-[1.02]" style={{ width: 794 * 0.48, height: 1123 * 0.42 }}>
+                      <div className="origin-top-left" style={{ transform: "scale(0.48)", width: 794 }}>
+                        <div style={{ height: 1123 * 0.88 }}><ResumeDoc data={{ ...sample, template: tMeta.id, accent: ACCENTS[i % ACCENTS.length] }} /></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-1 flex-col p-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <h2 className="font-display text-2xl font-black">{tMeta.name}</h2>
+                      <Chip className={tMeta.tag.includes("ATS-safe") || tMeta.tag.includes("popular") ? "text-pine-deep" : "text-coral"}>{tMeta.tag}</Chip>
+                    </div>
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-soft">{tMeta.desc}</p>
+                    <button onClick={() => pick(tMeta.id)} className={`mt-4 inline-flex items-center justify-center gap-2 border-2 px-4 py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5 ${resume.template === tMeta.id ? "border-ink bg-ink text-acid" : "border-ink bg-acid text-ink"}`}>
+                      {resume.template === tMeta.id ? t("templates.applied", "Applied to your draft") : t("templates.use", "Use this template")} <Icon name={resume.template === tMeta.id ? "check" : "arrow"} size={15} />
+                    </button>
+                  </div>
+                </div>
+              </Reveal>
+            );
+          })}
         </div>
       </section>
     </>

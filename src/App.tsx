@@ -13,6 +13,8 @@ import JobMatcherPage from "./pages/JobMatcher";
 import ActionVerbsPage from "./pages/ActionVerbs";
 import CoverLetterExamplesPage from "./pages/CoverLetterExamples";
 import FAQPage from "./pages/FAQ";
+import SalaryCalculator from "./pages/SalaryCalculator";
+import LinkedInGenerator from "./pages/LinkedInGenerator";
 import { trackPageView } from "./lib/analytics";
 
 function RouteEffects() {
@@ -60,6 +62,8 @@ export default function App() {
             <Route path="/cover-letter" element={<CoverLetterPage />} />
             <Route path="/cover-letter-examples" element={<CoverLetterExamplesPage />} />
             <Route path="/job-matcher" element={<JobMatcherPage />} />
+            <Route path="/salary-calculator" element={<SalaryCalculator />} />
+            <Route path="/linkedin-generator" element={<LinkedInGenerator />} />
             <Route path="/action-verbs" element={<ActionVerbsPage />} />
             <Route path="/blog" element={<BlogIndex />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />

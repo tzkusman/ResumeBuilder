@@ -2941,6 +2941,11 @@ export const COUNTRY_TRANSLATIONS: Record<string, Record<LanguageCode, string>> 
   "jp": { en: "Japan", hi: "जापान", es: "Japón", fr: "Japon", de: "Japan", pt: "Japão", ar: "اليابان", zh: "日本", ja: "日本" },
   "za": { en: "South Africa", hi: "दक्षिण अफ्रीका", es: "Sudáfrica", fr: "Afrique du Sud", de: "Südafrika", pt: "África do Sul", ar: "جنوب أفريقيا", zh: "南非", ja: "南アフリカ" },
   "br": { en: "Brazil", hi: "ब्राजील", es: "Brasil", fr: "Brésil", de: "Brasilien", pt: "Brasil", ar: "البرازيل", zh: "巴西", ja: "ブラジル" },
+  "it": { en: "Italy", hi: "इटली", es: "Italia", fr: "Italie", de: "Italien", pt: "Itália", ar: "إيطاليا", zh: "意大利", ja: "イタリア" },
+  "mx": { en: "Mexico", hi: "मेक्सिको", es: "México", fr: "Mexique", de: "Mexiko", pt: "México", ar: "المكسيك", zh: "墨西哥", ja: "メキシコ" },
+  "ch": { en: "Switzerland", hi: "स्विट्जरलैंड", es: "Suiza", fr: "Suisse", de: "Schweiz", pt: "Suíça", ar: "سويسرا", zh: "瑞士", ja: "スイス" },
+  "ie": { en: "Ireland", hi: "आयरलैंड", es: "Irlanda", fr: "Irlande", de: "Irland", pt: "Irlanda", ar: "أيرلندا", zh: "爱尔兰", ja: "アイルランド" },
+  "nz": { en: "New Zealand", hi: "न्यूजीलैंड", es: "Nueva Zelanda", fr: "Nouvelle-Zélande", de: "Neuseeland", pt: "Nova Zelândia", ar: "نيوزيلندا", zh: "新西兰", ja: "ニュージーランド" },
 };
 
 /* ---------------- Helper Accessors ---------------- */

@@ -26,6 +26,46 @@ const TEMPLATES: { id: TemplateId; name: string; note: string }[] = [
   { id: "academic", name: "Academic", note: "Research · education" },
   { id: "tech", name: "Tech", note: "Startup · innovative" },
   { id: "corporate", name: "Corporate", note: "Enterprise · structured" },
+  { id: "nordic", name: "Nordic", note: "Minimalist · Scandinavian" },
+  { id: "cascade", name: "Cascade", note: "Tiered · dynamic accents" },
+  { id: "summit", name: "Summit", note: "Executive · leadership" },
+  { id: "onyx", name: "Onyx", note: "High-contrast · precision" },
+  { id: "stellar", name: "Stellar", note: "Dual-tone · telemetry" },
+];
+
+const METRIC_TEMPLATES = [
+  {
+    category: "Cost & Efficiency",
+    template: "Reduced operational costs by [X]% ($[Y]k/year) by automating and optimizing [process/workflow]."
+  },
+  {
+    category: "Revenue & Growth",
+    template: "Increased quarterly revenue by [X]% ($[Y]M) by spearheading the launch and adoption of [initiative]."
+  },
+  {
+    category: "Speed & Performance",
+    template: "Optimized core system performance, cutting p95 response latency by [X]% from [A]ms to [B]ms."
+  },
+  {
+    category: "Scale & Reliability",
+    template: "Scaled cloud infrastructure to support [X]M+ daily active users while maintaining 99.99% uptime."
+  },
+  {
+    category: "Process Automation",
+    template: "Automated manual data and reporting pipelines, saving [X] team hours per week and eliminating errors."
+  },
+  {
+    category: "Leadership & Delivery",
+    template: "Led cross-functional squad of [X] engineers and designers to deliver [product] [Y] weeks ahead of schedule."
+  },
+  {
+    category: "Quality & Testing",
+    template: "Decreased production incidents by [X]% through implementing automated CI/CD and end-to-end test suites."
+  },
+  {
+    category: "Conversion & Retention",
+    template: "Improved user conversion rate by [X]% and customer retention by [Y]% via data-driven A/B experiments."
+  }
 ];
 
 const inputCls = "w-full border border-ink/25 bg-white px-3 py-2 text-sm transition-colors placeholder:text-ink-soft/50 focus:border-pine focus:outline-none";
@@ -63,6 +103,7 @@ export default function Builder() {
   const [gate, setGate] = useState<null | "signin" | "upgrade">(null);
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState("contact");
+  const [previewPage, setPreviewPage] = useState<"all" | 1 | 2>("all");
   const [showAts, setShowAts] = useState(false);
   const [jd, setJd] = useState("");
   const [jdAnalyzed, setJdAnalyzed] = useState<ReturnType<typeof matchKeywords> | null>(null);
@@ -151,38 +192,29 @@ export default function Builder() {
 
   const [manualZoom, setManualZoom] = useState<number | null>(null);
   const effectiveScale = manualZoom ?? scale;
-  const importJsonRef = useRef<HTMLInputElement>(null);
+  const [openMetricMenuId, setOpenMetricMenuId] = useState<string | null>(null);
 
-  const exportJson = () => {
-    const blob = new Blob([JSON.stringify(resume, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileName}-backup.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast("JSON backup downloaded successfully.", "ok");
-  };
+  const insertMetricTemplate = (id: string, currentBullets: string[], specificIndex?: number) => {
+    const existing = currentBullets.map((b) => b.trim());
+    let chosen = METRIC_TEMPLATES[0];
 
-  const handleImportJson = (e: ChangeEvent<HTMLInputElement>) => {
-    const uploaded = e.target.files?.[0];
-    if (!uploaded) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const parsed = JSON.parse(evt.target?.result as string);
-        if (parsed && typeof parsed === "object" && parsed.contact) {
-          setResume(parsed);
-          toast("Resume restored from backup file.", "ok");
-        } else {
-          toast("Invalid resume file format.", "warn");
-        }
-      } catch {
-        toast("Failed to parse JSON file.", "warn");
+    if (typeof specificIndex === "number" && METRIC_TEMPLATES[specificIndex]) {
+      chosen = METRIC_TEMPLATES[specificIndex];
+    } else {
+      // Find the first template that hasn't already been inserted
+      const unused = METRIC_TEMPLATES.find((m) => !existing.includes(m.template));
+      if (unused) {
+        chosen = unused;
+      } else {
+        // If all are used, cycle to next
+        chosen = METRIC_TEMPLATES[existing.length % METRIC_TEMPLATES.length];
       }
-    };
-    reader.readAsText(uploaded);
-    e.target.value = "";
+    }
+
+    const cleaned = currentBullets.filter((b) => b.trim().length > 0);
+    setXp(id, { bullets: [...cleaned, chosen.template] });
+    toast(`Added ${chosen.category} metric formula: "${chosen.template.slice(0, 36)}…"`, "ok");
+    setOpenMetricMenuId(null);
   };
 
   const sections = [
@@ -192,6 +224,7 @@ export default function Builder() {
     { id: "education", label: t("builder.tab.education", "Education") },
     { id: "skills", label: t("builder.tab.skills", "Skills") },
     { id: "extras", label: t("builder.tab.extras", "Extras") },
+    { id: "projects", label: t("builder.tab.projects", "Projects & Details") },
   ];
 
   return (
@@ -229,13 +262,6 @@ export default function Builder() {
             </select>
           </div>
           <div className="ml-auto flex items-center gap-2.5">
-            <input ref={importJsonRef} type="file" accept=".json" onChange={handleImportJson} className="hidden" />
-            <button onClick={() => importJsonRef.current?.click()} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Restore from JSON backup">
-              <Icon name="upload" size={13} /> {t("builder.loadJson", "Load JSON")}
-            </button>
-            <button onClick={exportJson} className="hidden items-center gap-1.5 border border-ink/30 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex" title="Download JSON backup">
-              <Icon name="download" size={13} /> {t("builder.backupJson", "Backup JSON")}
-            </button>
             {user && isPro && (
               <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> {t("builder.proUnlimited", "Pro · unlimited")}</span>
             )}
@@ -340,17 +366,45 @@ export default function Builder() {
                             +{verb}
                           </button>
                         ))}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const template = "Engineered [system] reducing [metric] by [X]%, saving $[Y] annually";
-                            setXp(e.id, { bullets: [...e.bullets.filter(Boolean), template] });
-                            toast("Added metric-driven bullet template.", "ok");
-                          }}
-                          className="ml-auto border border-pine/40 bg-acid px-2 py-0.5 font-mono text-[10px] font-bold text-ink hover:border-ink"
-                        >
-                          + Metric Template
-                        </button>
+                        <div className="relative ml-auto inline-flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => insertMetricTemplate(e.id, e.bullets)}
+                            className="border border-pine/40 bg-acid px-2 py-0.5 font-mono text-[10px] font-bold text-ink hover:border-ink hover:bg-acid-soft transition-colors"
+                            title="Add quantifiable achievement formula (cycles through 8 varied metric types)"
+                          >
+                            + Metric Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setOpenMetricMenuId(openMetricMenuId === e.id ? null : e.id)}
+                            className="border-y border-r border-pine/40 bg-acid px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink hover:bg-paper transition-colors"
+                            title="Choose specific metric formula"
+                            aria-label="Choose metric formula"
+                          >
+                            ▾
+                          </button>
+                          {openMetricMenuId === e.id && (
+                            <div className="absolute right-0 top-full z-30 mt-1 w-72 border-2 border-ink bg-card p-1.5 shadow-md">
+                              <div className="mb-1 border-b border-ink/10 pb-1 font-mono text-[9.5px] font-bold uppercase text-ink-soft">
+                                Select Quantifiable Metric:
+                              </div>
+                              <div className="max-h-56 space-y-1 overflow-y-auto">
+                                {METRIC_TEMPLATES.map((m, mIdx) => (
+                                  <button
+                                    key={mIdx}
+                                    type="button"
+                                    onClick={() => insertMetricTemplate(e.id, e.bullets, mIdx)}
+                                    className="w-full text-left rounded p-1.5 font-mono text-[10px] hover:bg-acid-soft transition-colors"
+                                  >
+                                    <span className="font-bold text-pine block">{m.category}</span>
+                                    <span className="text-ink-soft line-clamp-2">{m.template}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <textarea
                         value={e.bullets.join("\n")}
@@ -424,10 +478,162 @@ export default function Builder() {
               </label>
             </SectionShell>
           )}
+
+          {tab === "projects" && (
+            <div className="space-y-4">
+              {/* Page count selector card */}
+              <div className="border-2 border-ink bg-card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-display text-base font-bold text-ink">Resume Format & Pages</p>
+                    <p className="font-mono text-[10.5px] text-ink-soft">1-page standard ATS or 2-page extended CV</p>
+                  </div>
+                  <div className="inline-flex border-2 border-ink bg-white p-0.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        set((r) => ({ ...r, pageCount: 1 }));
+                        toast("Set to 1-Page Resume format.", "ok");
+                      }}
+                      className={`px-3 py-1.5 font-mono text-[11px] font-bold ${resume.pageCount !== 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}
+                    >
+                      1 Page (A4)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        set((r) => ({ ...r, pageCount: 2 }));
+                        toast("Set to 2-Page Resume format. Extended projects and details enabled.", "ok");
+                      }}
+                      className={`px-3 py-1.5 font-mono text-[11px] font-bold ${resume.pageCount === 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}
+                    >
+                      2 Pages (Extended)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Projects List */}
+              <SectionShell title="Key Projects & Systems" hint="Deliverables, systems, or case studies (ideal for Page 2)" open onToggle={() => {}}>
+                <div className="space-y-4">
+                  {(resume.projects || []).map((p, idx) => (
+                    <div key={p.id || idx} className="border border-ink/20 bg-white p-3 space-y-2">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <Field label="Project Title" value={p.title} onChange={(v) => set((r) => ({ ...r, projects: (r.projects || []).map((x) => x.id === p.id ? { ...x, title: v } : x) }))} placeholder="Enterprise Data Migration" />
+                        <Field label="Tech Stack / Role" value={p.subtitle || ""} onChange={(v) => set((r) => ({ ...r, projects: (r.projects || []).map((x) => x.id === p.id ? { ...x, subtitle: v } : x) }))} placeholder="React, Node.js, AWS" />
+                      </div>
+                      <Field label="Timeline / Date" value={p.date || ""} onChange={(v) => set((r) => ({ ...r, projects: (r.projects || []).map((x) => x.id === p.id ? { ...x, date: v } : x) }))} placeholder="2023 – 2024" />
+                      <label className="block">
+                        <span className={labelCls}>Bullet points (one per line)</span>
+                        <textarea
+                          value={(p.bullets || []).join("\n")}
+                          onChange={(ev) => set((r) => ({ ...r, projects: (r.projects || []).map((x) => x.id === p.id ? { ...x, bullets: ev.target.value.split("\n") } : x) }))}
+                          rows={3}
+                          className={`${inputCls} font-mono text-[12px]`}
+                          placeholder={"Architected microservices reducing latency by 35%\nAutomated CI/CD pipeline cutting deploy time in half"}
+                        />
+                      </label>
+                      <button onClick={() => set((r) => ({ ...r, projects: (r.projects || []).filter((x) => x.id !== p.id) }))} className="flex items-center gap-1.5 text-xs font-bold text-coral hover:underline">
+                        <Icon name="trash" size={12} /> Remove project
+                      </button>
+                    </div>
+                  ))}
+                  <button onClick={() => set((r) => ({ ...r, projects: [...(r.projects || []), { id: uid(), title: "", subtitle: "", date: "", bullets: [""] }] }))} className="flex w-full items-center justify-center gap-2 border-2 border-dashed border-ink/40 py-2.5 text-xs font-bold text-ink-soft hover:border-ink hover:text-ink">
+                    <Icon name="plus" size={14} /> + Add Project
+                  </button>
+                </div>
+              </SectionShell>
+
+              {/* Volunteer Roles */}
+              <SectionShell title="Volunteering & Leadership" hint="Community leadership, mentoring, non-profit or civic work" open onToggle={() => {}}>
+                <div className="space-y-3">
+                  {(resume.volunteer || []).map((v, idx) => (
+                    <div key={v.id || idx} className="border border-ink/20 bg-white p-3 space-y-2">
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <Field label="Role" value={v.role} onChange={(val) => set((r) => ({ ...r, volunteer: (r.volunteer || []).map((x) => x.id === v.id ? { ...x, role: val } : x) }))} placeholder="Senior Mentor" />
+                        <Field label="Organization" value={v.org} onChange={(val) => set((r) => ({ ...r, volunteer: (r.volunteer || []).map((x) => x.id === v.id ? { ...x, org: val } : x) }))} placeholder="Code For All" />
+                        <Field label="Timeline" value={v.year || ""} onChange={(val) => set((r) => ({ ...r, volunteer: (r.volunteer || []).map((x) => x.id === v.id ? { ...x, year: val } : x) }))} placeholder="2022 – Present" />
+                      </div>
+                      <button onClick={() => set((r) => ({ ...r, volunteer: (r.volunteer || []).filter((x) => x.id !== v.id) }))} className="flex items-center gap-1.5 text-xs font-bold text-coral hover:underline">
+                        <Icon name="trash" size={12} /> Remove role
+                      </button>
+                    </div>
+                  ))}
+                  <button onClick={() => set((r) => ({ ...r, volunteer: [...(r.volunteer || []), { id: uid(), role: "", org: "", year: "", bullets: [] }] }))} className="flex w-full items-center justify-center gap-2 border-2 border-dashed border-ink/40 py-2.5 text-xs font-bold text-ink-soft hover:border-ink hover:text-ink">
+                    <Icon name="plus" size={14} /> + Add Volunteer Role
+                  </button>
+                </div>
+              </SectionShell>
+            </div>
+          )}
         </div>
 
         {/* ------------ preview column ------------ */}
         <div className="space-y-4">
+          {/* Page Length & Add/Delete Page 2 Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-card px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="kicker text-ink-soft">Pages</span>
+              <div className="inline-flex border-2 border-ink bg-white p-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    set((r) => ({ ...r, pageCount: 1 }));
+                    toast("Switched to 1-Page Resume format.", "ok");
+                  }}
+                  className={`px-3 py-1 text-xs font-bold transition-colors ${resume.pageCount !== 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}
+                >
+                  1 Page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    set((r) => ({ ...r, pageCount: 2 }));
+                    toast("Enabled 2-Page Resume format. Extended projects and details enabled.", "ok");
+                  }}
+                  className={`px-3 py-1 text-xs font-bold transition-colors ${resume.pageCount === 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"}`}
+                >
+                  2 Pages
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {resume.pageCount === 2 ? (
+                <>
+                  <div className="flex items-center gap-1 font-mono text-[10px] text-ink-soft mr-2">
+                    <span>View:</span>
+                    <button type="button" onClick={() => setPreviewPage("all")} className={`px-2 py-0.5 border ${previewPage === "all" ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>Both</button>
+                    <button type="button" onClick={() => setPreviewPage(1)} className={`px-2 py-0.5 border ${previewPage === 1 ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>P1</button>
+                    <button type="button" onClick={() => setPreviewPage(2)} className={`px-2 py-0.5 border ${previewPage === 2 ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>P2</button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      set((r) => ({ ...r, pageCount: 1 }));
+                      toast("Deleted Page 2. Reverted to 1-page format.", "ok");
+                    }}
+                    className="flex items-center gap-1.5 border border-coral/50 bg-coral/10 px-2.5 py-1 text-xs font-bold text-coral hover:bg-coral/20"
+                    title="Switch to 1-page format"
+                  >
+                    <Icon name="trash" size={13} /> Delete Page 2
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    set((r) => ({ ...r, pageCount: 2 }));
+                    toast("Added Page 2 to resume. You can now add extended experience & projects.", "ok");
+                  }}
+                  className="flex items-center gap-1.5 border border-pine/60 bg-acid px-3 py-1 text-xs font-bold text-ink hover:bg-acid-soft"
+                >
+                  <Icon name="plus" size={14} /> + Add Page 2
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-3 border-2 border-ink bg-card px-4 py-3">
             <span className="kicker text-ink-soft">{t("builder.template", "Template")}</span>
             <div className="flex flex-wrap gap-1.5">
@@ -461,11 +667,49 @@ export default function Builder() {
                 <button type="button" onClick={() => setManualZoom(1)} className="font-mono text-[10px] uppercase text-ink-soft hover:text-ink">100%</button>
               </div>
             </div>
-            <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }}>
-              <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794 }}>
-                <ResumeDoc data={resume} />
+
+            {resume.pageCount === 2 && previewPage === "all" ? (
+              <div className="space-y-6">
+                <div>
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-ink-soft">Sheet 1 · Core Profile & Experience</span>
+                    <span className="border border-ink/20 bg-card px-2 py-0.5 font-mono text-[10px] text-ink-soft">Page 1 of 2</span>
+                  </div>
+                  <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }}>
+                    <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794 }}>
+                      <ResumeDoc data={resume} pageNumber={1} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-3">
+                  <div className="h-px flex-1 bg-ink/20" />
+                  <span className="border border-ink/30 bg-card px-3 py-1 font-mono text-[10.5px] font-bold uppercase tracking-wider text-ink-soft">
+                    A4 Page Break · Sheet 2
+                  </span>
+                  <div className="h-px flex-1 bg-ink/20" />
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between px-1">
+                    <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-ink-soft">Sheet 2 · Extended Experience, Projects & Credentials</span>
+                    <span className="border border-ink/20 bg-card px-2 py-0.5 font-mono text-[10px] text-ink-soft">Page 2 of 2</span>
+                  </div>
+                  <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }}>
+                    <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794 }}>
+                      <ResumeDoc data={resume} pageNumber={2} />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="mx-auto overflow-hidden border border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)]" style={{ width: 794 * effectiveScale, height: 1123 * effectiveScale }}>
+                <div className="origin-top-left" style={{ transform: `scale(${effectiveScale})`, width: 794 }}>
+                  <ResumeDoc data={resume} pageNumber={resume.pageCount === 2 && previewPage !== "all" ? previewPage : undefined} />
+                </div>
+              </div>
+            )}
+
             <p className="mt-3 text-center font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-soft">{t("builder.previewSub", "Live A4 preview — exports print-exact")}</p>
           </div>
         </div>

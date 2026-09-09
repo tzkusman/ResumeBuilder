@@ -28,6 +28,11 @@ const TEMPLATE_META: { id: TemplateId; name: string; tag: string; desc: string }
   { id: "academic", name: "Academic", tag: "CV · research & grants", desc: "Comprehensive CV format featuring formal academic letterhead, research summaries, and publication history." },
   { id: "tech", name: "Tech", tag: "Terminal · monospace", desc: "Code-inspired monospace styling with terminal prompt headers and developer tag badges for software engineers." },
   { id: "corporate", name: "Corporate", tag: "Enterprise · Fortune 500", desc: "Polished corporate layout with structured metadata borders, executive precision, and formal business styling." },
+  { id: "nordic", name: "Nordic", tag: "Scandinavian · minimal", desc: "High-contrast minimalist layout with clean line divisions, generous negative space, and refined typography." },
+  { id: "cascade", name: "Cascade", tag: "Dynamic · tiered accents", desc: "Modern tiered architecture with cascading accent lines, structured bullet milestones, and crisp readability." },
+  { id: "summit", name: "Summit", tag: "Executive · leadership", desc: "High-impact boxed header with strategic competencies matrix and authoritative governance layout." },
+  { id: "onyx", name: "Onyx", tag: "Precision · tech & finance", desc: "Dark accent strip with monospace technical tags, sharp architectural dividers, and high-contrast precision." },
+  { id: "stellar", name: "Stellar", tag: "Dual-tone · narrative flow", desc: "Contemporary dual-tone layout with left telemetry skill panel and seamless narrative career history column." },
 ];
 
 export function TemplatesPage() {

@@ -1,7 +1,13 @@
 import type { ResumeData } from "../lib/types";
+import NordicTemplate from "./templates/NordicTemplate";
+import CascadeTemplate from "./templates/CascadeTemplate";
+import SummitTemplate from "./templates/SummitTemplate";
+import OnyxTemplate from "./templates/OnyxTemplate";
+import StellarTemplate from "./templates/StellarTemplate";
+import StandardPage2 from "./templates/StandardPage2";
 
 /**
- * Renders the resume as a 794×1123 A4 sheet in one of fifteen distinct templates:
+ * Renders the resume as a 794×1123 A4 sheet in one of twenty distinct templates:
  * 1. merit: Recruiter-proof standard, clean mono section labels, scannable bullets.
  * 2. ledger: Visual dual-column with solid accent sidebar.
  * 3. atlas: Compact modern sheet with an accent bar on top and dot-separated skills.
@@ -17,10 +23,33 @@ import type { ResumeData } from "../lib/types";
  * 13. academic: Traditional CV curriculum vitae format with research & credential priority.
  * 14. tech: Developer-focused layout with monospace code-inspired syntax and tags.
  * 15. corporate: Enterprise Fortune 500 format with structured metadata and grid alignment.
+ * 16. nordic: Minimalist Scandinavian high-contrast typography and subtle borders.
+ * 17. cascade: Dynamic tiered modern layout with cascading accent markers.
+ * 18. summit: Executive leadership with high-impact dossier header and strategy grids.
+ * 19. onyx: Dark top accent bar, monospace technical tags, and sharp architectural grids.
+ * 20. stellar: Dual-tone layout with left telemetry sidebar and narrative experience column.
  */
-export default function ResumeDoc({ data }: { data: ResumeData }) {
+export default function ResumeDoc({ data, pageNumber }: { data: ResumeData; pageNumber?: 1 | 2 }) {
+  // New Templates dispatch
+  if (data.template === "nordic") return <NordicTemplate data={data} pageNumber={pageNumber} />;
+  if (data.template === "cascade") return <CascadeTemplate data={data} pageNumber={pageNumber} />;
+  if (data.template === "summit") return <SummitTemplate data={data} pageNumber={pageNumber} />;
+  if (data.template === "onyx") return <OnyxTemplate data={data} pageNumber={pageNumber} />;
+  if (data.template === "stellar") return <StellarTemplate data={data} pageNumber={pageNumber} />;
+
+  // If viewing only page 2 of a 2-page resume
+  if (pageNumber === 2) {
+    return <StandardPage2 data={data} />;
+  }
+
   const { contact: c, accent } = data;
-  const xp = data.experience.filter((e) => e.role || e.company);
+  const isTwoPage = data.pageCount === 2;
+  const rawXp = data.experience.filter((e) => e.role || e.company);
+  const xp = isTwoPage && pageNumber === 1 
+    ? rawXp.slice(0, Math.min(3, Math.ceil(rawXp.length / 2))) 
+    : isTwoPage && !pageNumber
+      ? rawXp.slice(0, Math.min(3, Math.ceil(rawXp.length / 2)))
+      : rawXp;
   const edu = data.education.filter((e) => e.degree || e.school);
   const contactLine = [c.email, c.phone, c.location, c.website, c.linkedin].filter(Boolean);
 
@@ -1018,7 +1047,8 @@ export default function ResumeDoc({ data }: { data: ResumeData }) {
   // 15. MERIT / ATLAS / CRAFT: Single Column Standard
   // =========================================================================
   return (
-    <div className={`resume-sheet px-12 ${craft ? "py-14 text-center" : atlas ? "py-9" : "py-11"}`}>
+    <>
+      <div className={`resume-sheet px-12 ${craft ? "py-14 text-center" : atlas ? "py-9" : "py-11"}`}>
       {atlas && <div className="mb-6 h-1.5 w-full" style={{ background: accent }} />}
       <header className={craft ? "" : atlas ? "" : "border-b-2 pb-5"} style={craft ? {} : { borderColor: accent }}>
         <h1 className={`font-display font-black leading-none ${craft ? "text-[38px]" : "text-[32px]"} ${atlas ? "uppercase tracking-tight" : ""}`}>
@@ -1099,6 +1129,8 @@ export default function ResumeDoc({ data }: { data: ResumeData }) {
         )}
       </div>
     </div>
+    {isTwoPage && !pageNumber && <StandardPage2 data={data} />}
+  </>
   );
 }
 

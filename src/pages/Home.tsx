@@ -229,7 +229,7 @@ function AtsSection() {
       // Step 2: In-depth resume parsing
       setScanStep("Extracting contact info, career timeline, education & skills...");
       await new Promise((r) => setTimeout(r, 250));
-      const parsedPartial = parseCVToResume(extracted.text);
+      const parsedPartial = parseCVToResume(extracted.text, extracted.pageCount);
 
       // Merge with empty resume structure to guarantee 100% compliant ResumeData
       const completeResume = mergeCVWithResume(parsedPartial, emptyResume());

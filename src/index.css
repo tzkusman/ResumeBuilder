@@ -97,6 +97,27 @@ body {
   font-family: var(--font-body);
   font-size: 13px;
   line-height: 1.5;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.resume-page-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+.resume-page-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 28px 0 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
 }
 
 /* ---------- print (PDF export) ---------- */
@@ -105,8 +126,20 @@ body {
   @page { size: A4; margin: 0; }
   body.printing #root { display: none !important; }
   body.printing #print-root { display: block !important; }
-  body.printing { background: #fff; }
-  .resume-sheet { box-shadow: none !important; width: 210mm; min-height: 296mm; }
+  body.printing { background: #fff !important; }
+  .resume-sheet {
+    box-shadow: none !important;
+    width: 210mm !important;
+    min-height: 296.5mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .resume-sheet.page-2,
+  .resume-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+  .resume-page-divider { display: none !important; }
   
   /* Ensure colors and backgrounds print correctly */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }

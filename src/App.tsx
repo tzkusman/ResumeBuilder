@@ -26,7 +26,7 @@ const useCleanUrls = host === "localhost" || host === "127.0.0.1" || host.endsWi
 const Router = useCleanUrls ? BrowserRouter : HashRouter;
 
 // Country-specific routes for programmatic SEO and localized experience
-const COUNTRY_CODES = ["us", "gb", "ca", "au", "de", "fr", "nl", "es", "ae", "sa", "pk", "in", "sg", "jp", "za", "br"];
+const COUNTRY_CODES = ["us", "gb", "ca", "au", "de", "fr", "nl", "es", "ae", "sa", "pk", "in", "sg", "jp", "za", "br", "it", "mx", "ch", "ie", "nz"];
 
 export default function App() {
   return (

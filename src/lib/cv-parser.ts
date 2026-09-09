@@ -1,31 +1,133 @@
-import type { ResumeData, Experience, Education } from './types';
+import type { ResumeData, Experience, Education, ProjectEntry, VolunteerEntry } from './types';
+
+/**
+ * Cleans multi-page CV artifacts such as running headers, page numbers ("Page 1 of 2"),
+ * page separators, and repeated candidate headers before parsing sections.
+ */
+function cleanMultiPageArtifacts(text: string): string {
+  return text
+    // Remove "Page X of Y", "Page X / Y", "Page X", "1 of 2", "- Page 2 -", "[Page 2]", "Page 2 | 2"
+    .replace(/^[ \t]*(?:[-–—\s*\[\(]*)?(?:page\s*\d+\s*(?:of|\/|\|)\s*\d+|\bpage\s*\d+\b|\d+\s*(?:of|\/|\|)\s*\d+)(?:[-–—\s*\]\)]*)?$/gim, '')
+    // Remove standalone page breaks / dividers
+    .replace(/^[ \t]*(?:[-–—=_*]{3,}|--- PAGE BREAK ---)[ \t]*$/gim, '')
+    // Remove repeated running "Curriculum Vitae" or "Resume" header lines
+    .replace(/\n\s*(?:curriculum\s+vitae|resume)\s*(?:[-–—|•]\s*[^\n]+)?\s*\n/gi, '\n')
+    // Normalize excessive newlines
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'projects' | 'volunteer' | 'certifications' | 'languages' | 'unknown';
+
+const SECTION_HEADER_PATTERNS: { type: SectionType; regex: RegExp }[] = [
+  {
+    type: 'experience',
+    regex: /^(?:work\s+experience|professional\s+experience|employment\s+history|experience|work\s+history|career\s+history|career\s+summary|experience\s*[\(\-–—]\s*(?:continued|cont\.?)\s*[\)\-–—]?|work\s+experience\s*[\(\-–—]\s*(?:continued|cont\.?)\s*[\)\-–—]?|additional\s+experience|previous\s+experience|earlier\s+career|relevant\s+experience):?$/i
+  },
+  {
+    type: 'education',
+    regex: /^(?:education|academic\s+background|academic\s+history|academics|qualifications|education\s*[\(\-–—]\s*(?:continued|cont\.?)\s*[\)\-–—]?):?$/i
+  },
+  {
+    type: 'skills',
+    regex: /^(?:skills|technical\s+skills|core\s+competencies|expertise|technologies|tools\s*(?:&|and)\s*technologies|key\s+skills|proficiencies|areas\s+of\s+expertise|technical\s+proficiencies):?$/i
+  },
+  {
+    type: 'projects',
+    regex: /^(?:projects|key\s+projects|selected\s+projects|personal\s+projects|technical\s+projects|portfolio|deliverables|featured\s+projects|projects\s*[\(\-–—]\s*(?:continued|cont\.?)\s*[\)\-–—]?):?$/i
+  },
+  {
+    type: 'certifications',
+    regex: /^(?:certifications|certificates|licenses|professional\s+credentials|certifications\s*(?:&|and)\s*licenses|training|accreditations):?$/i
+  },
+  {
+    type: 'languages',
+    regex: /^(?:languages|language\s+proficiency|language\s+skills):?$/i
+  },
+  {
+    type: 'volunteer',
+    regex: /^(?:volunteer|volunteering|community\s+service|leadership\s*(?:&|and)\s*volunteering|extracurricular|community\s+involvement):?$/i
+  },
+  {
+    type: 'summary',
+    regex: /^(?:summary|professional\s+summary|profile|about\s+me|career\s+objective|objective|executive\s+summary|personal\s+profile):?$/i
+  }
+];
+
+function groupLinesIntoSections(lines: string[]): Record<SectionType, string[]> {
+  const sections: Record<SectionType, string[]> = {
+    summary: [],
+    experience: [],
+    education: [],
+    skills: [],
+    projects: [],
+    volunteer: [],
+    certifications: [],
+    languages: [],
+    unknown: []
+  };
+
+  let currentSection: SectionType = 'unknown';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Check if line is a recognized section header
+    const matchedHeader = SECTION_HEADER_PATTERNS.find(p => p.regex.test(line));
+
+    if (matchedHeader) {
+      currentSection = matchedHeader.type;
+      continue;
+    }
+
+    sections[currentSection].push(line);
+  }
+
+  return sections;
+}
 
 /**
  * Parses extracted CV text into structured ResumeData format
  */
-export function parseCVToResume(text: string): Partial<ResumeData> {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+export function parseCVToResume(text: string, detectedPageCount?: number): Partial<ResumeData> {
+  const cleanedText = cleanMultiPageArtifacts(text);
+  const lines = cleanedText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const sections = groupLinesIntoSections(lines);
   
   // Extract contact information
-  const contact = extractContactInfo(text);
+  const contact = extractContactInfo(cleanedText);
   
   // Extract summary/objective
-  const summary = extractSummary(text);
+  const summary = extractSummary(cleanedText, sections.summary);
   
   // Extract work experience
-  const experience = extractExperience(text, lines);
+  const experience = extractExperience(cleanedText, lines, sections.experience);
   
   // Extract education
-  const education = extractEducation(text, lines);
+  const education = extractEducation(cleanedText, lines, sections.education);
   
   // Extract skills
-  const skills = extractSkills(text, lines);
+  const skills = extractSkills(cleanedText, lines, sections.skills);
   
   // Extract languages if present
-  const languages = extractLanguages(text);
+  const languages = extractLanguages(cleanedText, sections.languages);
   
   // Extract certifications if present
-  const certifications = extractCertifications(text);
+  const certifications = extractCertifications(cleanedText, sections.certifications);
+
+  // Extract projects if present
+  const projects = extractProjects(cleanedText, lines, sections.projects);
+
+  // Extract volunteer work if present
+  const volunteer = extractVolunteer(cleanedText, lines, sections.volunteer);
+
+  // Determine if this is a 2-page CV
+  const isTwoPage = (detectedPageCount && detectedPageCount >= 2) ||
+    experience.length >= 3 ||
+    (experience.length + education.length) >= 4 ||
+    projects.length > 0 ||
+    volunteer.length > 0 ||
+    cleanedText.length > 1100;
   
   return {
     contact,
@@ -34,7 +136,10 @@ export function parseCVToResume(text: string): Partial<ResumeData> {
     education,
     skills,
     languages,
-    certifications
+    certifications,
+    projects,
+    volunteer,
+    pageCount: isTwoPage ? 2 : 1
   };
 }
 
@@ -42,8 +147,15 @@ export function parseCVToResume(text: string): Partial<ResumeData> {
  * Merges parsed CV data with existing resume data
  */
 export function mergeCVWithResume(parsed: Partial<ResumeData>, existing: ResumeData): ResumeData {
+  const shouldBeTwoPage = parsed.pageCount === 2 ||
+    (parsed.experience && parsed.experience.length >= 3) ||
+    ((parsed.experience?.length || 0) + (parsed.education?.length || 0) >= 4) ||
+    (parsed.projects && parsed.projects.length > 0) ||
+    existing.pageCount === 2;
+
   return {
     ...existing,
+    pageCount: shouldBeTwoPage ? 2 : 1,
     contact: {
       ...existing.contact,
       ...parsed.contact,
@@ -70,7 +182,13 @@ export function mergeCVWithResume(parsed: Partial<ResumeData>, existing: ResumeD
       : existing.languages,
     certifications: parsed.certifications && parsed.certifications.length > 0 
       ? parsed.certifications 
-      : existing.certifications
+      : existing.certifications,
+    projects: parsed.projects && parsed.projects.length > 0
+      ? parsed.projects
+      : (existing.projects || []),
+    volunteer: parsed.volunteer && parsed.volunteer.length > 0
+      ? parsed.volunteer
+      : (existing.volunteer || [])
   };
 }
 
@@ -195,7 +313,14 @@ function extractContactInfo(text: string): ResumeData['contact'] {
   return contact;
 }
 
-function extractSummary(text: string): string {
+function extractSummary(text: string, sectionLines?: string[]): string {
+  if (sectionLines && sectionLines.length > 0) {
+    const combined = sectionLines.join(' ').replace(/\s+/g, ' ').trim();
+    if (combined.length >= 20) {
+      return combined.slice(0, 900);
+    }
+  }
+
   const summaryPatterns = [
     /(?:Professional\s+Summary|Executive\s+Summary|Summary|Profile|About\s+Me|Career\s+Objective|Objective)[:\s]*\n?([\s\S]*?)(?=\n\s*(?:Work\s+Experience|Professional\s+Experience|Experience|Employment|Education|Skills|Technical\s+Skills|Projects|Certifications)\b|$)/i
   ];
@@ -208,7 +333,7 @@ function extractSummary(text: string): string {
         .replace(/\s+/g, ' ')
         .trim();
       if (cleaned.length >= 20) {
-        return cleaned.slice(0, 700);
+        return cleaned.slice(0, 900);
       }
     }
   }
@@ -223,36 +348,40 @@ function extractSummary(text: string): string {
       continue;
     }
     if (afterContact && line.length > 60 && !line.match(/^(experience|education|skills|projects|certifications)/i)) {
-      return line.replace(/\s+/g, ' ').slice(0, 700);
+      return line.replace(/\s+/g, ' ').slice(0, 900);
     }
   }
   
   return '';
 }
 
-function extractExperience(text: string, lines: string[]): Experience[] {
+function extractExperience(text: string, lines: string[], sectionLines?: string[]): Experience[] {
   const experiences: Experience[] = [];
   
-  // 1. Locate Experience section
-  const expSectionIndex = lines.findIndex(l =>
-    /^(work\s+experience|professional\s+experience|employment\s+history|experience|work\s+history|career\s+history)$/i.test(l) ||
-    /^(work\s+experience|professional\s+experience|experience):?$/i.test(l)
-  );
+  let expLines: string[] = [];
+  if (sectionLines && sectionLines.length > 0) {
+    expLines = sectionLines;
+  } else {
+    // 1. Locate Experience section fallback
+    const expSectionIndex = lines.findIndex(l =>
+      /^(work\s+experience|professional\s+experience|employment\s+history|experience|work\s+history|career\s+history)$/i.test(l) ||
+      /^(work\s+experience|professional\s+experience|experience):?$/i.test(l)
+    );
+    
+    const startIndex = expSectionIndex !== -1 ? expSectionIndex + 1 : 0;
+    
+    const nextSectionIndex = lines.findIndex((l, idx) =>
+      idx > startIndex + 2 &&
+      /^(education|academic|skills|technical\s+skills|certifications|projects|languages|references|interests)$/i.test(l)
+    );
+    
+    expLines = (startIndex > 0)
+      ? lines.slice(startIndex, nextSectionIndex !== -1 ? nextSectionIndex : undefined)
+      : lines;
+  }
   
-  const startIndex = expSectionIndex !== -1 ? expSectionIndex + 1 : 0;
-  
-  // Locate next section to avoid spilling into Education or Skills
-  const nextSectionIndex = lines.findIndex((l, idx) =>
-    idx > startIndex + 2 &&
-    /^(education|academic|skills|technical\s+skills|certifications|projects|languages|references|interests)$/i.test(l)
-  );
-  
-  const expLines = (startIndex > 0)
-    ? lines.slice(startIndex, nextSectionIndex !== -1 ? nextSectionIndex : undefined)
-    : lines;
-  
-  // Date pattern: e.g. "Jan 2021 - Present", "2020 - 2023", "03/2019 – 11/2021", "May 2022 - Current"
-  const dateRegex = /(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(?:19|20)\d{2}\s*(?:-|–|—|to)\s*(?:Present|Current|(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+)?(?:19|20)\d{2})/i;
+  // Flexible Date pattern: e.g. "Jan 2021 - Present", "2020 - 2023", "03/2019 – 11/2021", "May 2022 - Current", "2021 - Ongoing"
+  const dateRegex = /(?:(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?|\d{1,2}\/\d{2,4})\s+)?(?:19|20)\d{2}\s*(?:-|–|—|to)\s*(?:Present|Current|Ongoing|(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?|\d{1,2}\/\d{2,4}\s+)?(?:19|20)\d{2})/i;
   const bulletRegex = /^[•●○▪▸→\-\*]\s*(.+)$/;
   
   interface RawEntry {
@@ -270,17 +399,18 @@ function extractExperience(text: string, lines: string[]): Experience[] {
     const line = expLines[i].trim();
     if (!line) continue;
     
+    // Ignore running header / page break markers
+    if (/^(?:page\s*\d+|\d+\s*of\s*\d+|curriculum\s+vitae|resume)$/i.test(line)) continue;
+
     const dateMatch = line.match(dateRegex);
     const bulletMatch = line.match(bulletRegex);
     
     // Check if line is a new job header (contains a date or precedes a date)
     if (dateMatch) {
-      // If we already had an active entry, save it
       if (currentEntry && (currentEntry.role || currentEntry.company)) {
         entries.push(currentEntry);
       }
       
-      // Look at what else is on this line or previous lines
       let role = '';
       let company = '';
       let location = '';
@@ -288,7 +418,6 @@ function extractExperience(text: string, lines: string[]): Experience[] {
       
       const restOfLine = line.replace(dateStr, '').replace(/[|•–—,\-()]/g, ' ').trim();
       
-      // If the date line itself contained the role or company
       if (restOfLine.length > 2) {
         if (restOfLine.includes(' at ') || restOfLine.includes(' @ ')) {
           const parts = restOfLine.split(/\s+(?:at|@)\s+/i);
@@ -304,14 +433,14 @@ function extractExperience(text: string, lines: string[]): Experience[] {
         const prev1 = expLines[i - 1]?.trim() || '';
         const prev2 = expLines[i - 2]?.trim() || '';
         
-        if (prev1 && !bulletRegex.test(prev1) && prev1.length < 80) {
+        if (prev1 && !bulletRegex.test(prev1) && prev1.length < 90) {
           if (prev1.includes('|') || prev1.includes(' - ') || prev1.includes(' — ')) {
             const parts = prev1.split(/[|—]|\s-\s/).map(p => p.trim());
             role = role || parts[0] || '';
             company = company || parts[1] || '';
           } else if (!role) {
             role = prev1;
-            if (prev2 && !bulletRegex.test(prev2) && prev2.length < 80) {
+            if (prev2 && !bulletRegex.test(prev2) && prev2.length < 90) {
               company = prev2;
             }
           } else if (!company) {
@@ -322,7 +451,7 @@ function extractExperience(text: string, lines: string[]): Experience[] {
       
       currentEntry = {
         role: role || 'Professional Role',
-        company: company || 'Company',
+        company: company || 'Organization',
         location,
         dateStr,
         bullets: []
@@ -330,23 +459,31 @@ function extractExperience(text: string, lines: string[]): Experience[] {
       continue;
     }
     
-    // If it's a bullet point
+    // Explicit bullet point
     if (bulletMatch && currentEntry) {
       const bText = bulletMatch[1].trim();
-      if (bText.length > 5) {
+      if (bText.length > 2) {
         currentEntry.bullets.push(bText);
       }
       continue;
     }
     
-    // If not a bullet, but we have an active entry
+    // Continuation of previous bullet OR action line without bullet symbol
     if (currentEntry) {
-      // Check if line looks like an action bullet without explicit bullet character
-      const startsWithVerb = /^(Led|Built|Managed|Designed|Created|Developed|Optimized|Increased|Reduced|Automated|Negotiated|Shipped|Scaled|Engineered|Coordinated|Delivered)\b/i.test(line);
-      if (startsWithVerb || line.length > 35) {
-        currentEntry.bullets.push(line);
-      } else if (!currentEntry.company && line.length < 50) {
-        currentEntry.company = line;
+      const isDate = dateRegex.test(line);
+      if (!isDate) {
+        const startsWithVerb = /^(?:Led|Built|Managed|Designed|Created|Developed|Optimized|Increased|Reduced|Automated|Negotiated|Shipped|Scaled|Engineered|Coordinated|Delivered|Spearheaded|Implemented|Maintained|Facilitated|Formulated|Mentored|Achieved|Resolved|Supervised|Accelerated|Collaborated|Directed|Executed|Established|Transformed|Trained|Authored|Streamlined|Architected)\b/i.test(line);
+        
+        if (startsWithVerb) {
+          currentEntry.bullets.push(line);
+        } else if (currentEntry.bullets.length > 0 && !line.includes('|') && line.length < 260) {
+          // Wrapped continuation line of the previous bullet point!
+          currentEntry.bullets[currentEntry.bullets.length - 1] += ' ' + line;
+        } else if (!currentEntry.company && line.length < 60 && !line.includes('•')) {
+          currentEntry.company = line;
+        } else if (line.length > 25) {
+          currentEntry.bullets.push(line);
+        }
       }
     }
   }
@@ -365,11 +502,11 @@ function extractExperience(text: string, lines: string[]): Experience[] {
       location: entry.location || 'Remote',
       start: dates.start,
       end: dates.end,
-      bullets: entry.bullets.length > 0 ? entry.bullets.slice(0, 6) : ['Executed core initiatives and delivered key departmental milestones.']
+      bullets: entry.bullets.length > 0 ? entry.bullets.slice(0, 10) : ['Executed core initiatives and delivered key departmental milestones.']
     });
   }
   
-  return experiences.slice(0, 6);
+  return experiences.slice(0, 16);
 }
 
 function parseDateRange(str: string): { start: string; end: string } {
@@ -379,28 +516,143 @@ function parseDateRange(str: string): { start: string; end: string } {
   
   return {
     start: normalizeDate(startRaw) || '2021-01',
-    end: /present|current/i.test(endRaw) ? '' : (normalizeDate(endRaw) || '2023-12')
+    end: /present|current|ongoing/i.test(endRaw) ? '' : (normalizeDate(endRaw) || '2023-12')
   };
 }
 
-function extractEducation(text: string, lines: string[]): Education[] {
+function extractProjects(text: string, lines: string[], sectionLines?: string[]): ProjectEntry[] {
+  const projects: ProjectEntry[] = [];
+  const targetLines = (sectionLines && sectionLines.length > 0)
+    ? sectionLines
+    : (() => {
+        const projectIdx = lines.findIndex(l =>
+          /^(projects|key\s+projects|selected\s+projects|personal\s+projects|technical\s+projects):?$/i.test(l)
+        );
+        if (projectIdx === -1) return [];
+        const nextSectionIdx = lines.findIndex((l, idx) =>
+          idx > projectIdx + 1 &&
+          /^(experience|education|skills|certifications|languages|volunteer|references|interests):?$/i.test(l)
+        );
+        return lines.slice(projectIdx + 1, nextSectionIdx !== -1 ? nextSectionIdx : projectIdx + 30);
+      })();
+
+  if (targetLines.length === 0) return projects;
+
+  let currentProj: ProjectEntry | null = null;
+
+  for (const line of targetLines) {
+    if (!line.trim()) continue;
+    if (/^(?:page\s*\d+|\d+\s*of\s*\d+|curriculum\s+vitae|resume)$/i.test(line)) continue;
+
+    const bulletMatch = line.match(/^[•●○▪▸→\-\*]\s*(.+)$/);
+
+    if (bulletMatch) {
+      if (currentProj) {
+        currentProj.bullets.push(bulletMatch[1].trim());
+      } else {
+        currentProj = {
+          id: Math.random().toString(36).slice(2, 9),
+          title: "Key Project",
+          subtitle: "",
+          bullets: [bulletMatch[1].trim()]
+        };
+        projects.push(currentProj);
+      }
+    } else {
+      if (currentProj && currentProj.bullets.length > 0 && !line.includes('|') && line.length < 240) {
+        // Bullet continuation
+        currentProj.bullets[currentProj.bullets.length - 1] += ' ' + line;
+        continue;
+      }
+
+      // Header line of project: e.g. "Project Title | React, Node.js" or "Portfolio Redesign (2023)"
+      const parts = line.split(/[|•–—]/);
+      const title = parts[0]?.trim() || "Project";
+      const subtitle = parts.slice(1).join(" | ").trim();
+      currentProj = {
+        id: Math.random().toString(36).slice(2, 9),
+        title,
+        subtitle,
+        bullets: []
+      };
+      projects.push(currentProj);
+    }
+  }
+
+  return projects.slice(0, 8);
+}
+
+function extractVolunteer(text: string, lines: string[], sectionLines?: string[]): VolunteerEntry[] {
+  const volunteer: VolunteerEntry[] = [];
+  const targetLines = (sectionLines && sectionLines.length > 0)
+    ? sectionLines
+    : (() => {
+        const volIdx = lines.findIndex(l =>
+          /^(volunteer|volunteering|community\s+service|leadership\s+&\s+volunteering|extracurricular):?$/i.test(l)
+        );
+        if (volIdx === -1) return [];
+        const nextSectionIdx = lines.findIndex((l, idx) =>
+          idx > volIdx + 1 &&
+          /^(experience|education|skills|certifications|languages|projects|references):?$/i.test(l)
+        );
+        return lines.slice(volIdx + 1, nextSectionIdx !== -1 ? nextSectionIdx : volIdx + 20);
+      })();
+
+  if (targetLines.length === 0) return volunteer;
+
+  let currentVol: VolunteerEntry | null = null;
+
+  for (const line of targetLines) {
+    if (!line.trim()) continue;
+    if (/^(?:page\s*\d+|\d+\s*of\s*\d+|curriculum\s+vitae|resume)$/i.test(line)) continue;
+
+    const bulletMatch = line.match(/^[•●○▪▸→\-\*]\s*(.+)$/);
+    if (bulletMatch && currentVol) {
+      currentVol.bullets.push(bulletMatch[1].trim());
+    } else {
+      if (currentVol && currentVol.bullets.length > 0 && !line.includes('|') && line.length < 240) {
+        currentVol.bullets[currentVol.bullets.length - 1] += ' ' + line;
+        continue;
+      }
+      const yearMatch = line.match(/(?:19|20)\d{2}/);
+      const parts = line.split(/[|•–—,]/);
+      currentVol = {
+        id: Math.random().toString(36).slice(2, 9),
+        role: parts[0]?.trim() || "Volunteer",
+        org: parts[1]?.trim() || "Community Initiative",
+        year: yearMatch ? yearMatch[0] : "",
+        bullets: []
+      };
+      volunteer.push(currentVol);
+    }
+  }
+
+  return volunteer.slice(0, 6);
+}
+
+function extractEducation(text: string, lines: string[], sectionLines?: string[]): Education[] {
   const educations: Education[] = [];
   
-  // 1. Look for education section
-  const eduSectionStart = lines.findIndex(l => 
-    /^(education|academic\s+background|academic\s+history|academics|qualifications)$/i.test(l) ||
-    /^(education|academics):?$/i.test(l)
-  );
-  
-  const startIndex = eduSectionStart !== -1 ? eduSectionStart + 1 : 0;
-  const nextSection = lines.findIndex((l, idx) =>
-    idx > startIndex + 1 &&
-    /^(skills|technical\s+skills|certifications|projects|languages|experience|work\s+experience)$/i.test(l)
-  );
-  
-  const eduLines = (startIndex > 0)
-    ? lines.slice(startIndex, nextSection !== -1 ? nextSection : undefined)
-    : lines;
+  let eduLines: string[] = [];
+  if (sectionLines && sectionLines.length > 0) {
+    eduLines = sectionLines;
+  } else {
+    // 1. Look for education section fallback
+    const eduSectionStart = lines.findIndex(l => 
+      /^(education|academic\s+background|academic\s+history|academics|qualifications)$/i.test(l) ||
+      /^(education|academics):?$/i.test(l)
+    );
+    
+    const startIndex = eduSectionStart !== -1 ? eduSectionStart + 1 : 0;
+    const nextSection = lines.findIndex((l, idx) =>
+      idx > startIndex + 1 &&
+      /^(skills|technical\s+skills|certifications|projects|languages|experience|work\s+experience)$/i.test(l)
+    );
+    
+    eduLines = (startIndex > 0)
+      ? lines.slice(startIndex, nextSection !== -1 ? nextSection : undefined)
+      : lines;
+  }
   
   // Comprehensive degree patterns
   const degreeRegex = /(?:Bachelor(?:\s+of\s+[A-Za-z]+|\s+degree)?|Master(?:\s+of\s+[A-Za-z]+|\s+degree)?|Doctor\s+of\s+[A-Za-z]+|Ph\.?D\.?|M\.?B\.?A\.?|B\.?S\.?|M\.?S\.?|B\.?A\.?|B\.?Eng\.?|M\.?Eng\.?|Associate(?:\s+of\s+[A-Za-z]+|\s+degree)?|Diploma)/i;
@@ -408,6 +660,7 @@ function extractEducation(text: string, lines: string[]): Education[] {
   for (let i = 0; i < eduLines.length; i++) {
     const line = eduLines[i].trim();
     if (!line) continue;
+    if (/^(?:page\s*\d+|\d+\s*of\s*\d+|curriculum\s+vitae|resume)$/i.test(line)) continue;
     
     if (degreeRegex.test(line) || /University|College|Institute|Polytechnic|School\s+of\s+[A-Za-z]+/i.test(line)) {
       let degree = '';
@@ -415,14 +668,11 @@ function extractEducation(text: string, lines: string[]): Education[] {
       let year = '';
       let location = '';
       
-      // Look for year on this line or nearby
       const yearMatch = (line + ' ' + (eduLines[i + 1] || '')).match(/(?:19|20)\d{2}/);
       if (yearMatch) year = yearMatch[0];
       
-      // Determine school vs degree
       if (/University|College|Institute|Polytechnic|Academy/i.test(line)) {
         school = line.replace(/(?:19|20)\d{2}/, '').replace(/[|•–—,]/g, ' ').trim();
-        // Check next line for degree
         const next = eduLines[i + 1]?.trim() || '';
         if (next && degreeRegex.test(next)) {
           degree = next.replace(/(?:19|20)\d{2}/, '').replace(/[|•–—,]/g, ' ').trim();
@@ -430,7 +680,6 @@ function extractEducation(text: string, lines: string[]): Education[] {
         }
       } else if (degreeRegex.test(line)) {
         degree = line.replace(/(?:19|20)\d{2}/, '').replace(/[|•–—,]/g, ' ').trim();
-        // Check next line for school
         const next = eduLines[i + 1]?.trim() || '';
         if (next && /University|College|Institute|Polytechnic|Academy|School/i.test(next)) {
           school = next.replace(/(?:19|20)\d{2}/, '').replace(/[|•–—,]/g, ' ').trim();
@@ -471,33 +720,33 @@ function extractEducation(text: string, lines: string[]): Education[] {
     }
   }
   
-  return educations.slice(0, 3);
+  return educations.slice(0, 8);
 }
 
-function extractSkills(text: string, lines: string[]): string[] {
+function extractSkills(text: string, lines: string[], sectionLines?: string[]): string[] {
   const skills: string[] = [];
   
-  // 1. Look for skills section
-  const skillsSectionStart = lines.findIndex(l => 
-    /^(skills|technical\s+skills|core\s+competencies|expertise|technologies|tools\s+&\s+technologies|proficiencies)$/i.test(l) ||
-    /^(skills|technical\s+skills):?$/i.test(l)
-  );
-  
-  if (skillsSectionStart !== -1) {
-    const skillsLines = lines.slice(skillsSectionStart + 1, skillsSectionStart + 20);
+  const targetLines = (sectionLines && sectionLines.length > 0)
+    ? sectionLines
+    : (() => {
+        const sIdx = lines.findIndex(l => 
+          /^(skills|technical\s+skills|core\s+competencies|expertise|technologies|tools\s+&\s+technologies|proficiencies)$/i.test(l) ||
+          /^(skills|technical\s+skills):?$/i.test(l)
+        );
+        return sIdx !== -1 ? lines.slice(sIdx + 1, sIdx + 20) : [];
+      })();
+
+  for (const line of targetLines) {
+    if (!sectionLines && /^(experience|education|certifications|projects|languages|interests)$/i.test(line)) break;
     
-    for (const line of skillsLines) {
-      if (/^(experience|education|certifications|projects|languages|interests)$/i.test(line)) break;
-      
-      // Split by common delimiters (commas, bullets, pipes, semicolons, slashes)
-      const parts = line
-        .replace(/^[A-Za-z\s]+:\s*/, '') // remove category prefix like "Languages: Python, JS"
-        .split(/[,•●○│;|/·\t]/)
-        .map(s => s.trim())
-        .filter(s => s.length >= 2 && s.length <= 40 && !s.includes('@') && !s.includes('http'));
-      
-      skills.push(...parts);
-    }
+    // Split by common delimiters (commas, bullets, pipes, semicolons, slashes)
+    const parts = line
+      .replace(/^[A-Za-z\s]+:\s*/, '')
+      .split(/[,•●○│;|/·\t]/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 2 && s.length <= 40 && !s.includes('@') && !s.includes('http'));
+    
+    skills.push(...parts);
   }
   
   // 2. Comprehensive catalog of 200+ industry skills to match across full text
@@ -538,9 +787,20 @@ function extractSkills(text: string, lines: string[]): string[] {
   return cleaned.slice(0, 24);
 }
 
-function extractLanguages(text: string): string[] {
+function extractLanguages(text: string, sectionLines?: string[]): string[] {
   const languages: string[] = [];
   
+  if (sectionLines && sectionLines.length > 0) {
+    for (const line of sectionLines) {
+      const parts = line.replace(/^[A-Za-z\s]+:\s*/, '').split(/[,•●○│;|/·\t]/).map(s => s.trim()).filter(Boolean);
+      for (const p of parts) {
+        if (p.length >= 2 && p.length <= 35 && !languages.includes(p)) {
+          languages.push(p);
+        }
+      }
+    }
+  }
+
   // Look for languages section
   const langPatterns = [
     /Languages?[:\s]*([\s\S]*?)(?=Skills|Experience|Education|$)/i,
@@ -555,7 +815,7 @@ function extractLanguages(text: string): string[] {
         'Japanese', 'Korean', 'Portuguese', 'Italian', 'Arabic', 'Hindi', 'Russian'];
       
       for (const lang of commonLanguages) {
-        if (langText.includes(lang)) {
+        if (langText.includes(lang) && !languages.some(l => l.toLowerCase().includes(lang.toLowerCase()))) {
           languages.push(lang);
         }
       }
@@ -572,12 +832,21 @@ function extractLanguages(text: string): string[] {
     }
   }
   
-  return languages.slice(0, 5);
+  return languages.slice(0, 6);
 }
 
-function extractCertifications(text: string): string[] {
+function extractCertifications(text: string, sectionLines?: string[]): string[] {
   const certifications: string[] = [];
   
+  if (sectionLines && sectionLines.length > 0) {
+    for (const line of sectionLines) {
+      const cleaned = line.replace(/^[\u2022\u25CF\u25CB\u25AA\u25B8\u2192*-]+\s*/, '').trim();
+      if (cleaned.length > 3 && cleaned.length < 120 && !certifications.includes(cleaned)) {
+        certifications.push(cleaned);
+      }
+    }
+  }
+
   // Look for certifications section
   const certPatterns = [
     /Certifications?[:\s]*([\s\S]*?)(?=Skills|Languages|Experience|Education|$)/i,
@@ -594,7 +863,7 @@ function extractCertifications(text: string): string[] {
       for (const line of lines) {
         // Clean bullet points
         const cleaned = line.replace(/^[\u2022\u25CF\u25CB\u25AA\u25B8\u2192*-]+\s*/, '').trim();
-        if (cleaned.length > 5 && cleaned.length < 100) {
+        if (cleaned.length > 5 && cleaned.length < 100 && !certifications.includes(cleaned)) {
           certifications.push(cleaned);
         }
       }

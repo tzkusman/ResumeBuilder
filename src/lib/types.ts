@@ -40,7 +40,44 @@ export interface Education extends EduEntry {
   graduationYear?: string;
 }
 
-export type TemplateId = "merit" | "ledger" | "atlas" | "craft" | "modern" | "classic" | "elegant" | "professional" | "minimal" | "bold" | "creative" | "executive" | "academic" | "tech" | "corporate";
+export interface ProjectEntry {
+  id: string;
+  title: string;
+  subtitle: string;
+  link?: string;
+  date?: string;
+  bullets: string[];
+}
+
+export interface VolunteerEntry {
+  id: string;
+  role: string;
+  org: string;
+  year: string;
+  bullets: string[];
+}
+
+export type TemplateId =
+  | "merit"
+  | "ledger"
+  | "atlas"
+  | "craft"
+  | "modern"
+  | "classic"
+  | "elegant"
+  | "professional"
+  | "minimal"
+  | "bold"
+  | "creative"
+  | "executive"
+  | "academic"
+  | "tech"
+  | "corporate"
+  | "nordic"
+  | "cascade"
+  | "summit"
+  | "onyx"
+  | "stellar";
 
 export interface ResumeData {
   id: string;
@@ -54,6 +91,10 @@ export interface ResumeData {
   certifications: string[];
   template: TemplateId;
   accent: string;
+  pageCount?: 1 | 2;
+  projects?: ProjectEntry[];
+  volunteer?: VolunteerEntry[];
+  customSection?: { title: string; items: string[] };
 }
 
 export const ACCENTS = ["#17594a", "#1f4e9c", "#7c2f3e", "#0e6e6e", "#33383d", "#a84a22"];
@@ -74,6 +115,9 @@ export const emptyResume = (): ResumeData => ({
   certifications: [],
   template: "merit",
   accent: ACCENTS[0],
+  pageCount: 1,
+  projects: [],
+  volunteer: [],
 });
 
 export function resumeFromProfession(p: Profession): ResumeData {
@@ -97,6 +141,9 @@ export function resumeFromProfession(p: Profession): ResumeData {
     certifications: [...p.certifications],
     template: "merit",
     accent: ACCENTS[0],
+    pageCount: 1,
+    projects: [],
+    volunteer: [],
   };
 }
 

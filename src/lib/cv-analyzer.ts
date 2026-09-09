@@ -218,12 +218,13 @@ export async function parseDocxFile(file: File): Promise<{ text: string; rawHtml
   }
 }
 
-export async function parsePdfFile(file: File): Promise<{ text: string }> {
+export async function parsePdfFile(file: File): Promise<{ text: string; pageCount?: number }> {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
     let fullText = '';
+    let pageCount = 1;
     
     try {
       const loadingTask = pdfjsLib.getDocument({
@@ -237,34 +238,70 @@ export async function parsePdfFile(file: File): Promise<{ text: string }> {
       });
       
       const pdf = await loadingTask.promise;
+      pageCount = pdf.numPages;
       
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         
-        let lastY: number | null = null;
+        // Extract items with position metadata
+        const items = (textContent.items as any[])
+          .filter(item => typeof item.str === 'string' && item.str.length > 0)
+          .map(item => ({
+            str: item.str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''),
+            hasEOL: !!item.hasEOL,
+            x: item.transform ? Number(item.transform[4]) : 0,
+            y: item.transform ? Number(item.transform[5]) : 0,
+            width: Number(item.width) || 0,
+            height: Number(item.height) || 10
+          }));
+
+        // Sort items vertically (top to bottom: descending Y in PDF coordinates)
+        // With a tolerance of 3 points for items on the exact same baseline
+        items.sort((a, b) => {
+          const yDiff = b.y - a.y;
+          if (Math.abs(yDiff) > 3) return yDiff;
+          return a.x - b.x;
+        });
+
+        // Group into coherent horizontal visual lines
+        const linesList: Array<typeof items> = [];
+        let currentLine: typeof items = [];
+        let currentBaselineY: number | null = null;
+
+        for (const it of items) {
+          if (currentBaselineY === null || Math.abs(it.y - currentBaselineY) <= 3.2) {
+            currentLine.push(it);
+            if (currentBaselineY === null) currentBaselineY = it.y;
+          } else {
+            linesList.push(currentLine);
+            currentLine = [it];
+            currentBaselineY = it.y;
+          }
+        }
+        if (currentLine.length > 0) linesList.push(currentLine);
+
+        // Within each line, sort left-to-right (ascending X) and join with proper spacing
         let pageText = '';
-        
-        for (const item of textContent.items as any[]) {
-          const str = item.str;
-          if (!str && !item.hasEOL) continue;
-          
-          const currentY = item.transform ? item.transform[5] : null;
-          const isNewLine = item.hasEOL || (lastY !== null && currentY !== null && Math.abs(currentY - lastY) > 3.5);
-          
-          if (isNewLine) {
-            if (!pageText.endsWith('\n')) {
-              pageText += '\n';
+        for (const line of linesList) {
+          line.sort((a, b) => a.x - b.x);
+          let lineStr = '';
+          let lastEndX: number | null = null;
+
+          for (const item of line) {
+            const cleanStr = item.str;
+            if (!cleanStr) continue;
+
+            if (lastEndX !== null && (item.x - lastEndX > 3.5) && !lineStr.endsWith(' ') && !cleanStr.startsWith(' ')) {
+              lineStr += ' ';
             }
-          } else if (pageText.length > 0 && !pageText.endsWith('\n') && !pageText.endsWith(' ')) {
-            pageText += ' ';
+            lineStr += cleanStr;
+            lastEndX = item.x + item.width;
           }
-          
-          if (str) {
-            pageText += str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+
+          if (lineStr.trim()) {
+            pageText += lineStr.trim() + '\n';
           }
-          
-          if (currentY !== null) lastY = currentY;
         }
         
         fullText += pageText + '\n\n';
@@ -286,12 +323,12 @@ export async function parsePdfFile(file: File): Promise<{ text: string }> {
       // Last try: binary fallback
       const fallback = await extractTextFromBinaryFallback(file);
       if (fallback.trim().length >= 30) {
-        return { text: fallback.trim() };
+        return { text: fallback.trim(), pageCount };
       }
       throw new Error('PDF appears to be image-based or scanned with no selectable text. Please use a text-based PDF or convert to DOCX.');
     }
     
-    return { text: fullText };
+    return { text: fullText, pageCount };
   } catch (error: any) {
     console.error('Error parsing PDF:', error);
     
@@ -309,43 +346,48 @@ export async function parsePdfFile(file: File): Promise<{ text: string }> {
 /**
  * Universal CV file parser: handles .pdf, .docx, .doc, .txt
  */
-export async function extractTextFromCVFile(file: File): Promise<{ text: string; format: 'docx' | 'pdf' | 'txt' | 'unknown'; rawHtml?: string }> {
+export async function extractTextFromCVFile(file: File): Promise<{ text: string; format: 'docx' | 'pdf' | 'txt' | 'unknown'; rawHtml?: string; pageCount?: number }> {
   const fileName = (file.name || '').toLowerCase();
   const fileType = (file.type || '').toLowerCase();
   
   if (fileName.endsWith('.docx') || fileType.includes('wordprocessingml')) {
     const res = await parseDocxFile(file);
-    return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
+    // Estimate page count for docx based on word count
+    const wordCount = res.text.split(/\s+/).length;
+    const estimatedPages = wordCount > 450 ? 2 : 1;
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: estimatedPages };
   }
   
   if (fileName.endsWith('.pdf') || fileType.includes('pdf')) {
     const res = await parsePdfFile(file);
-    return { text: res.text, format: 'pdf' };
+    return { text: res.text, format: 'pdf', pageCount: res.pageCount || 1 };
   }
   
   if (fileName.endsWith('.doc') || fileType.includes('msword')) {
     try {
       const res = await parseDocxFile(file);
-      return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
+      const wordCount = res.text.split(/\s+/).length;
+      return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: wordCount > 450 ? 2 : 1 };
     } catch {
       const txt = await extractTextFromBinaryFallback(file);
-      if (txt.length >= 30) return { text: txt, format: 'docx' };
+      if (txt.length >= 30) return { text: txt, format: 'docx', pageCount: 1 };
       throw new Error('Please save your resume as modern .docx or .pdf for best ATS parsing accuracy.');
     }
   }
   
   if (fileName.endsWith('.txt') || fileType.startsWith('text/')) {
     const text = await file.text();
-    return { text, format: 'txt' };
+    const wordCount = text.split(/\s+/).length;
+    return { text, format: 'txt', pageCount: wordCount > 450 ? 2 : 1 };
   }
   
   // Unknown extension: try PDF first, then DOCX
   try {
     const res = await parsePdfFile(file);
-    return { text: res.text, format: 'pdf' };
+    return { text: res.text, format: 'pdf', pageCount: res.pageCount || 1 };
   } catch {
     const res = await parseDocxFile(file);
-    return { text: res.text, format: 'docx', rawHtml: res.rawHtml };
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: 1 };
   }
 }
 

@@ -35,7 +35,10 @@ export function CVAnalyzer() {
       languages: [],
       certifications: [],
       template: 'merit',
-      accent: '#17594a'
+      accent: '#17594a',
+      pageCount: parsedResume.pageCount || 1,
+      projects: [],
+      volunteer: []
     };
     
     // Merge parsed data with existing or empty resume
@@ -79,7 +82,7 @@ export function CVAnalyzer() {
       const text = extracted.text;
 
       // Parse CV into structured resume data
-      const parsed = parseCVToResume(text);
+      const parsed = parseCVToResume(text, extracted.pageCount);
       setParsedResume(parsed);
       
       // Analyze the CV

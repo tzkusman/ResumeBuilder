@@ -97,10 +97,11 @@ export function CoverLetterPage() {
   const { resume, setResume } = useResume();
   const { toast } = useToast();
   const { t } = useI18n();
-  const [company, setCompany] = useState("");
-  const [role, setRole] = useState(resume.contact.title);
-  const [manager, setManager] = useState("Hiring Manager");
-  const [why, setWhy] = useState("");
+  const [searchParams] = useSearchParams();
+  const [company, setCompany] = useState(() => searchParams.get("company") || "");
+  const [role, setRole] = useState(() => searchParams.get("role") || resume.contact.title);
+  const [manager, setManager] = useState(() => searchParams.get("manager") || "Hiring Manager");
+  const [why, setWhy] = useState(() => searchParams.get("why") || "");
   const [viewStyle, setViewStyle] = useState<"visual" | "text">("visual");
   const [zoom, setZoom] = useState<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);

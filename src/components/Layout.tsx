@@ -28,11 +28,11 @@ export default function Layout({ children }: { children: ReactNode }) {
   const loc = useLocation();
 
   const nav = [
-    { to: "/examples", label: t("nav.examples") },
-    { to: "/countries", label: t("nav.countries") },
     { to: "/templates", label: t("nav.templates") },
     { to: "/ats-checker", label: t("nav.ats") },
+    { to: "/job-matcher", label: t("nav.jobMatch") },
     { to: "/cover-letter", label: t("nav.cover") },
+    { to: "/blog", label: t("nav.blog") },
     { to: "/pricing", label: t("nav.pricing") },
   ];
 
@@ -137,8 +137,13 @@ export default function Layout({ children }: { children: ReactNode }) {
               <ul className="mt-4 grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2 lg:grid-cols-1">
                 <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/builder">{t("nav.build")}</Link></li>
                 <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/ats-checker">{t("nav.ats")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/job-matcher">{t("nav.jobMatch")}</Link></li>
                 <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/templates">{t("nav.templates")}</Link></li>
                 <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/cover-letter">{t("nav.cover")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/cover-letter-examples">Cover Letter Examples</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/action-verbs">{t("nav.actionVerbs")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/blog">{t("nav.blog")}</Link></li>
+                <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/faq">{t("nav.faq")}</Link></li>
                 <li><Link className="text-paper/70 transition-colors hover:text-acid" to="/pricing">{t("nav.pricing")}</Link></li>
               </ul>
             </div>
@@ -155,6 +160,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             <p>{t("footer.copyright")}</p>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               <Link to="/builder" className="hover:text-acid">{t("builder.tab.contact")}</Link>
+              <Link to="/blog" className="hover:text-acid">{t("nav.blog")}</Link>
+              <Link to="/faq" className="hover:text-acid">{t("nav.faq")}</Link>
               <Link to="/pricing" className="hover:text-acid">{t("nav.pricing")}</Link>
               <Link to="/privacy" className="hover:text-acid">{t("footer.privacy")}</Link>
               <Link to="/terms" className="hover:text-acid">{t("footer.terms")}</Link>

@@ -27,6 +27,10 @@ const PATHS: Record<string, ReactNode> = {
   flag: <path d="M5 21V4m0 1h13l-3 4 3 4H5" strokeLinecap="round" strokeLinejoin="round" />,
   external: <path d="M9 5H5v14h14v-4M14 4h6v6M20 4 11 13" strokeLinecap="round" strokeLinejoin="round" />,
   upload: <path d="M12 16V4m0 0-4 4m4-4 4 4M4 20h16" strokeLinecap="round" strokeLinejoin="round" />,
+  search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" strokeLinecap="round" strokeLinejoin="round" /></>,
+  book: <><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M6 6h10M6 10h10" strokeLinecap="round" /></>,
+  target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></>,
+  filter: <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" strokeLinecap="round" strokeLinejoin="round" />,
 };
 
 export function Icon({ name, size = 18, className = "" }: { name: keyof typeof PATHS | string; size?: number; className?: string; key?: any }) {

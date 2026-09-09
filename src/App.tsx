@@ -8,6 +8,11 @@ import ATSChecker from "./pages/ATSChecker";
 import { ExamplesIndex, ExamplePage } from "./pages/Examples";
 import { CountriesIndex, CountryPage } from "./pages/Countries";
 import { TemplatesPage, CoverLetterPage, PricingPage, AuthPage, SharedPage, LegalPage, NotFoundPage } from "./pages/Misc";
+import { BlogIndex, BlogPostPage } from "./pages/Blog";
+import JobMatcherPage from "./pages/JobMatcher";
+import ActionVerbsPage from "./pages/ActionVerbs";
+import CoverLetterExamplesPage from "./pages/CoverLetterExamples";
+import FAQPage from "./pages/FAQ";
 import { trackPageView } from "./lib/analytics";
 
 function RouteEffects() {
@@ -53,6 +58,12 @@ export default function App() {
             <Route path="/countries/:code" element={<CountryPage />} />
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/cover-letter" element={<CoverLetterPage />} />
+            <Route path="/cover-letter-examples" element={<CoverLetterExamplesPage />} />
+            <Route path="/job-matcher" element={<JobMatcherPage />} />
+            <Route path="/action-verbs" element={<ActionVerbsPage />} />
+            <Route path="/blog" element={<BlogIndex />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/faq" element={<FAQPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/shared" element={<SharedPage />} />

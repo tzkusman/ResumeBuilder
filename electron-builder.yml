@@ -1,0 +1,24 @@
+appId: app.resumebuild.desktop
+productName: ResumeBuild
+copyright: Copyright (c) 2026 ResumeBuild
+
+directories:
+  output: release
+
+extraMetadata:
+  main: electron/main.cjs
+
+files:
+  - electron/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ResumeBuild-Setup-${version}-windows.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true

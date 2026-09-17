@@ -1,0 +1,883 @@
+import * as mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Initialize PDF.js worker with resilient fallback
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  } catch {
+    // Silently continue; fallback text extraction is in place
+  }
+}
+
+export interface ATSAnalysis {
+  score: number;
+  maxScore: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  issues: ATSIssue[];
+  suggestions: string[];
+  keywords: KeywordMatch[];
+  sections: SectionAnalysis;
+  formatting: FormattingAnalysis;
+}
+
+export interface ATSIssue {
+  type: 'critical' | 'warning' | 'info';
+  category: 'structure' | 'keywords' | 'formatting' | 'content' | 'length';
+  message: string;
+  suggestion: string;
+  severity: number;
+}
+
+export interface KeywordMatch {
+  keyword: string;
+  found: boolean;
+  count: number;
+  importance: 'high' | 'medium' | 'low';
+  category: string;
+}
+
+export interface SectionAnalysis {
+  contact: { exists: boolean; complete: boolean; score: number };
+  summary: { exists: boolean; quality: 'good' | 'fair' | 'poor'; score: number };
+  experience: { exists: boolean; count: number; hasMetrics: boolean; score: number };
+  education: { exists: boolean; complete: boolean; score: number };
+  skills: { exists: boolean; count: number; relevant: boolean; score: number };
+  missing: string[];
+}
+
+export interface FormattingAnalysis {
+  fileFormat: 'docx' | 'pdf' | 'txt' | 'unknown';
+  isParseable: boolean;
+  hasImages: boolean;
+  hasTables: boolean;
+  hasColumns: boolean;
+  fontIssues: boolean;
+  readableByATS: boolean;
+}
+
+// Common ATS keywords by industry
+const INDUSTRY_KEYWORDS: Record<string, string[]> = {
+  technology: [
+    'JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 'Java', 'SQL',
+    'AWS', 'Azure', 'Docker', 'Kubernetes', 'Git', 'Agile', 'Scrum',
+    'REST API', 'GraphQL', 'CI/CD', 'Microservices', 'Cloud', 'DevOps'
+  ],
+  healthcare: [
+    'Patient Care', 'Clinical', 'HIPAA', 'Medical Records', 'Diagnosis',
+    'Treatment Planning', 'Electronic Health Records', 'Healthcare Compliance',
+    'Medical Terminology', 'Patient Safety', 'Quality Improvement'
+  ],
+  finance: [
+    'Financial Analysis', 'Budgeting', 'Forecasting', 'Risk Management',
+    'Compliance', 'GAAP', 'Financial Modeling', 'Investment Analysis',
+    'Audit', 'Tax Preparation', 'Accounting', 'Excel', 'SAP'
+  ],
+  marketing: [
+    'Digital Marketing', 'SEO', 'SEM', 'Social Media Marketing', 'Content Strategy',
+    'Brand Management', 'Campaign Management', 'Analytics', 'Google Analytics',
+    'Marketing Automation', 'Lead Generation', 'Conversion Optimization'
+  ],
+  education: [
+    'Curriculum Development', 'Student Engagement', 'Assessment', 'Lesson Planning',
+    'Classroom Management', 'Educational Technology', 'Differentiated Instruction',
+    'Student Assessment', 'Learning Outcomes', 'Pedagogy'
+  ],
+  engineering: [
+    'Project Management', 'CAD', 'Design Review', 'Quality Assurance',
+    'Testing', 'Prototyping', 'Technical Documentation', 'Cross-functional',
+    'Problem Solving', 'Root Cause Analysis', 'Lean Manufacturing', 'Six Sigma'
+  ],
+  sales: [
+    'Business Development', 'Client Relationship', 'Negotiation', 'Pipeline Management',
+    'Sales Strategy', 'Account Management', 'Cold Calling', 'Closing Deals',
+    'CRM', 'Salesforce', 'Lead Qualification', 'Revenue Growth'
+  ],
+  customer_service: [
+    'Customer Satisfaction', 'Conflict Resolution', 'Communication Skills',
+    'Problem Solving', 'Multi-tasking', 'Phone Support', 'Email Support',
+    'Live Chat', 'Customer Retention', 'Service Excellence'
+  ]
+};
+
+// Required sections for ATS
+const REQUIRED_SECTIONS = ['contact', 'summary', 'experience', 'education', 'skills'];
+
+// Action verbs that strengthen resumes
+const ACTION_VERBS = [
+  'Achieved', 'Accelerated', 'Accomplished', 'Analyzed', 'Built', 'Coordinated',
+  'Created', 'Developed', 'Directed', 'Enhanced', 'Executed', 'Generated',
+  'Implemented', 'Improved', 'Increased', 'Led', 'Managed', 'Optimized',
+  'Organized', 'Oversaw', 'Planned', 'Reduced', 'Streamlined', 'Successfully'
+];
+
+/**
+ * Converts Mammoth HTML output into clean structured text with line breaks,
+ * bullet symbols, and preserved section headers.
+ */
+function convertMammothHtmlToText(html: string): string {
+  return html
+    .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n• $1')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<tr[^>]*>(.*?)<\/tr>/gi, '\n$1')
+    .replace(/<t[dh][^>]*>(.*?)<\/t[dh]>/gi, ' $1 | ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * Fallback binary text extractor for legacy .doc or uncompressed streams
+ */
+async function extractTextFromBinaryFallback(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  let currentWord = '';
+  for (let i = 0; i < bytes.length; i++) {
+    const code = bytes[i];
+    if (code === 10 || code === 13) {
+      if (currentWord.length >= 3) {
+        str += currentWord + '\n';
+        currentWord = '';
+      }
+    } else if (code >= 32 && code <= 126) {
+      currentWord += String.fromCharCode(code);
+    } else {
+      if (currentWord.length >= 3) {
+        str += currentWord + ' ';
+        currentWord = '';
+      }
+    }
+  }
+  if (currentWord.length >= 3) str += currentWord;
+  return str.replace(/[ \t]+/g, ' ').slice(0, 50000);
+}
+
+export async function parseDocxFile(file: File): Promise<{ text: string; rawHtml?: string }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Extract raw text
+    const textResult = await mammoth.extractRawText({ arrayBuffer });
+    
+    // Also extract HTML to preserve structure (headings, bullets, tables)
+    let htmlResult = { value: '', messages: [] as any[] };
+    try {
+      htmlResult = await mammoth.convertToHtml({ arrayBuffer });
+    } catch {
+      // ignore html error if raw text succeeded
+    }
+    
+    let structuredText = '';
+    if (htmlResult.value && htmlResult.value.length > 30) {
+      structuredText = convertMammothHtmlToText(htmlResult.value);
+    }
+    
+    const rawVal = textResult.value || '';
+    const finalText = (structuredText && structuredText.length >= rawVal.length * 0.6)
+      ? structuredText
+      : rawVal;
+      
+    if (!finalText || finalText.trim().length < 20) {
+      // Try fallback binary text extraction for older .doc
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback && fallback.trim().length >= 20) {
+        return { text: fallback.trim(), rawHtml: '' };
+      }
+      throw new Error("Could not extract readable text from document.");
+    }
+    
+    return {
+      text: finalText.trim(),
+      rawHtml: htmlResult.value || ''
+    };
+  } catch (error: any) {
+    console.error('Error parsing DOCX:', error);
+    try {
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback && fallback.trim().length >= 20) {
+        return { text: fallback.trim(), rawHtml: '' };
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(error.message || 'Failed to parse DOCX file. Please ensure it is a valid Word document (.docx or .doc).');
+  }
+}
+
+export async function parsePdfFile(file: File): Promise<{ text: string; pageCount?: number }> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    let fullText = '';
+    let pageCount = 1;
+    
+    try {
+      const loadingTask = pdfjsLib.getDocument({
+        data: uint8Array,
+        useSystemFonts: true,
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        verbosity: 0,
+        disableFontFace: false,
+        enableXfa: true
+      });
+      
+      const pdf = await loadingTask.promise;
+      pageCount = pdf.numPages;
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        // Extract items with position metadata
+        const items = (textContent.items as any[])
+          .filter(item => typeof item.str === 'string' && item.str.length > 0)
+          .map(item => ({
+            str: item.str.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''),
+            hasEOL: !!item.hasEOL,
+            x: item.transform ? Number(item.transform[4]) : 0,
+            y: item.transform ? Number(item.transform[5]) : 0,
+            width: Number(item.width) || 0,
+            height: Number(item.height) || 10
+          }));
+
+        // Sort items vertically (top to bottom: descending Y in PDF coordinates)
+        // With a tolerance of 3 points for items on the exact same baseline
+        items.sort((a, b) => {
+          const yDiff = b.y - a.y;
+          if (Math.abs(yDiff) > 3) return yDiff;
+          return a.x - b.x;
+        });
+
+        // Group into coherent horizontal visual lines
+        const linesList: Array<typeof items> = [];
+        let currentLine: typeof items = [];
+        let currentBaselineY: number | null = null;
+
+        for (const it of items) {
+          if (currentBaselineY === null || Math.abs(it.y - currentBaselineY) <= 3.2) {
+            currentLine.push(it);
+            if (currentBaselineY === null) currentBaselineY = it.y;
+          } else {
+            linesList.push(currentLine);
+            currentLine = [it];
+            currentBaselineY = it.y;
+          }
+        }
+        if (currentLine.length > 0) linesList.push(currentLine);
+
+        // Within each line, sort left-to-right (ascending X) and join with proper spacing
+        let pageText = '';
+        for (const line of linesList) {
+          line.sort((a, b) => a.x - b.x);
+          let lineStr = '';
+          let lastEndX: number | null = null;
+
+          for (const item of line) {
+            const cleanStr = item.str;
+            if (!cleanStr) continue;
+
+            if (lastEndX !== null && (item.x - lastEndX > 3.5) && !lineStr.endsWith(' ') && !cleanStr.startsWith(' ')) {
+              lineStr += ' ';
+            }
+            lineStr += cleanStr;
+            lastEndX = item.x + item.width;
+          }
+
+          if (lineStr.trim()) {
+            pageText += lineStr.trim() + '\n';
+          }
+        }
+        
+        fullText += pageText + '\n\n';
+      }
+    } catch (pdfJsErr: any) {
+      console.warn('PDF.js worker/load failed, attempting direct text stream scan:', pdfJsErr);
+      fullText = await extractTextFromBinaryFallback(file);
+    }
+    
+    // Clean up extracted text while strictly preserving newlines
+    fullText = fullText
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    if (fullText.length < 30) {
+      // Last try: binary fallback
+      const fallback = await extractTextFromBinaryFallback(file);
+      if (fallback.trim().length >= 30) {
+        return { text: fallback.trim(), pageCount };
+      }
+      throw new Error('PDF appears to be image-based or scanned with no selectable text. Please use a text-based PDF or convert to DOCX.');
+    }
+    
+    return { text: fullText, pageCount };
+  } catch (error: any) {
+    console.error('Error parsing PDF:', error);
+    
+    if (error.message?.includes('password')) {
+      throw new Error('This PDF is password-protected. Please unlock it before uploading.');
+    }
+    if (error.message?.includes('Invalid') || error.message?.includes('corrupt')) {
+      throw new Error('This PDF file appears to be corrupted. Please try re-exporting it.');
+    }
+    
+    throw new Error(error.message || 'Failed to parse PDF file. Please ensure it contains selectable text.');
+  }
+}
+
+/**
+ * Universal CV file parser: handles .pdf, .docx, .doc, .txt
+ */
+export async function extractTextFromCVFile(file: File): Promise<{ text: string; format: 'docx' | 'pdf' | 'txt' | 'unknown'; rawHtml?: string; pageCount?: number }> {
+  const fileName = (file.name || '').toLowerCase();
+  const fileType = (file.type || '').toLowerCase();
+  
+  if (fileName.endsWith('.docx') || fileType.includes('wordprocessingml')) {
+    const res = await parseDocxFile(file);
+    // Estimate page count for docx based on word count
+    const wordCount = res.text.split(/\s+/).length;
+    const estimatedPages = wordCount > 450 ? 2 : 1;
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: estimatedPages };
+  }
+  
+  if (fileName.endsWith('.pdf') || fileType.includes('pdf')) {
+    const res = await parsePdfFile(file);
+    return { text: res.text, format: 'pdf', pageCount: res.pageCount || 1 };
+  }
+  
+  if (fileName.endsWith('.doc') || fileType.includes('msword')) {
+    try {
+      const res = await parseDocxFile(file);
+      const wordCount = res.text.split(/\s+/).length;
+      return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: wordCount > 750 ? 2 : 1 };
+    } catch {
+      const txt = await extractTextFromBinaryFallback(file);
+      if (txt.length >= 30) return { text: txt, format: 'docx', pageCount: 1 };
+      throw new Error('Please save your resume as modern .docx or .pdf for best ATS parsing accuracy.');
+    }
+  }
+  
+  if (fileName.endsWith('.txt') || fileType.startsWith('text/')) {
+    const text = await file.text();
+    const wordCount = text.split(/\s+/).length;
+    return { text, format: 'txt', pageCount: wordCount > 750 ? 2 : 1 };
+  }
+  
+  // Unknown extension: try PDF first, then DOCX
+  try {
+    const res = await parsePdfFile(file);
+    return { text: res.text, format: 'pdf', pageCount: res.pageCount || 1 };
+  } catch {
+    const res = await parseDocxFile(file);
+    return { text: res.text, format: 'docx', rawHtml: res.rawHtml, pageCount: 1 };
+  }
+}
+
+export function analyzeCV(text: string, jobDescription?: string): ATSAnalysis {
+  const normalizedText = text.toLowerCase();
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const words = text.split(/\s+/).filter(w => w.length > 0);
+  
+  // Detect industry from keywords
+  const detectedIndustry = detectIndustry(normalizedText);
+  const relevantKeywords = INDUSTRY_KEYWORDS[detectedIndustry] || INDUSTRY_KEYWORDS.technology;
+  
+  // Analyze sections
+  const sections = analyzeSections(text, normalizedText);
+  
+  // Analyze formatting (basic detection)
+  const formatting = analyzeFormatting(text);
+  
+  // Keyword analysis
+  const keywords = analyzeKeywords(normalizedText, relevantKeywords, jobDescription);
+  
+  // Content quality analysis
+  const contentIssues = analyzeContent(sentences, words, normalizedText);
+  
+  // Calculate scores
+  const sectionScore = calculateSectionScore(sections);
+  const keywordScore = calculateKeywordScore(keywords);
+  const contentScore = calculateContentScore(contentIssues);
+  const formattingScore = formatting.readableByATS ? 100 : 60;
+  
+  // Overall score (weighted average)
+  const overallScore = Math.round(
+    (sectionScore * 0.3) + 
+    (keywordScore * 0.25) + 
+    (contentScore * 0.25) + 
+    (formattingScore * 0.2)
+  );
+  
+  // Determine grade
+  const grade = determineGrade(overallScore);
+  
+  // Generate suggestions
+  const suggestions = generateSuggestions(sections, keywords, contentIssues, formatting);
+  
+  // Compile all issues
+  const issues = [
+    ...generateSectionIssues(sections),
+    ...generateKeywordIssues(keywords),
+    ...contentIssues,
+    ...generateFormattingIssues(formatting)
+  ].sort((a, b) => b.severity - a.severity);
+  
+  return {
+    score: Math.min(100, Math.max(0, overallScore)),
+    maxScore: 100,
+    grade,
+    issues,
+    suggestions,
+    keywords,
+    sections,
+    formatting
+  };
+}
+
+function detectIndustry(text: string): string {
+  const industryScores: Record<string, number> = {};
+  
+  Object.entries(INDUSTRY_KEYWORDS).forEach(([industry, keywords]) => {
+    const matches = keywords.filter(kw => text.includes(kw.toLowerCase())).length;
+    industryScores[industry] = matches;
+  });
+  
+  const bestMatch = Object.entries(industryScores)
+    .sort(([, a], [, b]) => b - a)[0];
+  
+  return bestMatch && bestMatch[1] > 0 ? bestMatch[0] : 'technology';
+}
+
+function analyzeSections(text: string, normalizedText: string): SectionAnalysis {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  
+  // Contact information analysis
+  const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text);
+  const hasPhone = /(\+?\d{1,3}[-.\s]?)?(\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}/.test(text);
+  const hasLocation = /\b[A-Z][a-z]+,\s*[A-Z]{2}\b/.test(text) || /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/.test(text);
+  const hasLinkedIn = /linkedin\.com/i.test(text);
+  
+  const contactInfo = {
+    exists: hasEmail || hasPhone,
+    complete: hasEmail && hasPhone && hasLocation,
+    score: (hasEmail ? 25 : 0) + (hasPhone ? 25 : 0) + (hasLocation ? 25 : 0) + (hasLinkedIn ? 25 : 0)
+  };
+  
+  // Summary/Objective analysis
+  const summaryPatterns = ['objective', 'summary', 'profile', 'about me', 'professional summary'];
+  const hasSummary = summaryPatterns.some(p => normalizedText.includes(p));
+  const summaryLength = hasSummary ? text.split(/[.!?]+/).find(s => 
+    summaryPatterns.some(p => s.toLowerCase().includes(p))
+  )?.length || 0 : 0;
+  
+  const summaryInfo = {
+    exists: hasSummary,
+    quality: (summaryLength > 200 ? 'good' : summaryLength > 100 ? 'fair' : 'poor') as 'good' | 'fair' | 'poor',
+    score: hasSummary ? (summaryLength > 200 ? 100 : summaryLength > 100 ? 70 : 40) : 0
+  };
+  
+  // Experience analysis
+  const experiencePatterns = ['experience', 'work history', 'employment', 'professional experience'];
+  const hasExperience = experiencePatterns.some(p => normalizedText.includes(p));
+  const experienceEntries = (text.match(/\b(20\d{2}|19\d{2})\s*[-–]\s*(Present|20\d{2}|19\d{2})\b/gi) || []).length;
+  const hasMetrics = /\d+%|\$\d+|\d+x|increased|decreased|reduced|improved/i.test(text);
+  
+  const experienceInfo = {
+    exists: hasExperience,
+    count: Math.max(experienceEntries, hasExperience ? 1 : 0),
+    hasMetrics,
+    score: hasExperience ? (experienceEntries >= 2 ? 80 : 60) + (hasMetrics ? 20 : 0) : 0
+  };
+  
+  // Education analysis
+  const educationPatterns = ['education', 'degree', 'university', 'college', 'bachelor', 'master', 'phd'];
+  const hasEducation = educationPatterns.some(p => normalizedText.includes(p));
+  const hasDegreeDetails = /(Bachelor|Master|PhD|B\.?S\.?|M\.?S\.?|B\.?A\.?|M\.?A\.?)/i.test(text);
+  
+  const educationInfo = {
+    exists: hasEducation,
+    complete: hasEducation && hasDegreeDetails,
+    score: hasEducation ? (hasDegreeDetails ? 100 : 60) : 0
+  };
+  
+  // Skills analysis
+  const skillsPatterns = ['skills', 'technical skills', 'core competencies', 'expertise'];
+  const hasSkills = skillsPatterns.some(p => normalizedText.includes(p));
+  const skillCount = (text.match(/[,•●○▪▸→]\s*[A-Za-z]/g) || []).length;
+  
+  const skillsInfo = {
+    exists: hasSkills,
+    count: Math.max(skillCount, hasSkills ? 3 : 0),
+    relevant: skillCount >= 5,
+    score: hasSkills ? (skillCount >= 8 ? 100 : skillCount >= 5 ? 80 : 50) : 0
+  };
+  
+  // Missing sections
+  const missing: string[] = [];
+  if (!contactInfo.exists) missing.push('Contact Information');
+  if (!summaryInfo.exists) missing.push('Professional Summary');
+  if (!experienceInfo.exists) missing.push('Work Experience');
+  if (!educationInfo.exists) missing.push('Education');
+  if (!skillsInfo.exists) missing.push('Skills');
+  
+  return {
+    contact: contactInfo,
+    summary: summaryInfo,
+    experience: experienceInfo,
+    education: educationInfo,
+    skills: skillsInfo,
+    missing
+  };
+}
+
+function analyzeFormatting(text: string): FormattingAnalysis {
+  const hasSpecialChars = /[•●○▪▸→│├└─]/.test(text);
+  const hasTables = /\|.*\|/.test(text);
+  const hasMultipleColumns = text.split('\n').some(line => line.length > 150);
+  
+  return {
+    fileFormat: 'docx', // Will be set by caller
+    isParseable: text.length > 100,
+    hasImages: false, // Can't detect from text
+    hasTables,
+    hasColumns: hasMultipleColumns,
+    fontIssues: false, // Can't detect from text
+    readableByATS: !hasMultipleColumns && !hasTables
+  };
+}
+
+function analyzeKeywords(text: string, industryKeywords: string[], jobDescription?: string): KeywordMatch[] {
+  const customKeywords = jobDescription ? extractKeywords(jobDescription) : [];
+  const allKeywords = [...new Set([...industryKeywords, ...customKeywords])];
+  
+  return allKeywords.map(keyword => {
+    const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const matches = text.match(regex);
+    const count = matches ? matches.length : 0;
+    
+    // Determine importance
+    let importance: 'high' | 'medium' | 'low' = 'medium';
+    if (customKeywords.includes(keyword)) {
+      importance = 'high';
+    } else if (['JavaScript', 'Python', 'React', 'SQL'].includes(keyword)) {
+      importance = 'high';
+    }
+    
+    // Categorize
+    let category = 'Technical';
+    if (['Communication', 'Leadership', 'Teamwork'].includes(keyword)) {
+      category = 'Soft Skills';
+    } else if (['Project Management', 'Agile', 'Scrum'].includes(keyword)) {
+      category = 'Methodologies';
+    }
+    
+    return {
+      keyword,
+      found: count > 0,
+      count,
+      importance,
+      category
+    };
+  });
+}
+
+function extractKeywords(text: string): string[] {
+  // Simple keyword extraction - nouns and technical terms
+  const words = text.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3);
+  
+  // Count frequency
+  const freq: Record<string, number> = {};
+  words.forEach(w => {
+    freq[w] = (freq[w] || 0) + 1;
+  });
+  
+  // Return top frequent words that might be keywords
+  return Object.entries(freq)
+    .filter(([_, count]) => count >= 2)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 15)
+    .map(([word]) => word.charAt(0).toUpperCase() + word.slice(1));
+}
+
+function analyzeContent(sentences: string[], words: string[], text: string): ATSIssue[] {
+  const issues: ATSIssue[] = [];
+  
+  // Check for action verbs
+  const hasActionVerbs = ACTION_VERBS.some(verb => 
+    sentences.some(s => s.trim().startsWith(verb))
+  );
+  
+  if (!hasActionVerbs) {
+    issues.push({
+      type: 'warning',
+      category: 'content',
+      message: 'Limited use of strong action verbs',
+      suggestion: 'Start bullet points with action verbs like "Achieved", "Developed", "Managed"',
+      severity: 60
+    });
+  }
+  
+  // Check sentence length
+  const avgSentenceLength = words.length / Math.max(1, sentences.length);
+  if (avgSentenceLength > 30) {
+    issues.push({
+      type: 'info',
+      category: 'content',
+      message: 'Sentences may be too long',
+      suggestion: 'Keep sentences concise (15-25 words) for better readability',
+      severity: 40
+    });
+  }
+  
+  // Check for first person pronouns (should minimize in modern resumes)
+  const firstPersonCount = (text.match(/\b(I|me|my|mine)\b/gi) || []).length;
+  if (firstPersonCount > 5) {
+    issues.push({
+      type: 'info',
+      category: 'content',
+      message: 'Excessive use of first-person pronouns',
+      suggestion: 'Remove "I", "me", "my" - let your achievements speak for themselves',
+      severity: 30
+    });
+  }
+  
+  // Check for quantifiable achievements
+  const hasNumbers = /\d+%|\$\d+|\d+x|\d+\s+(people|team|clients|customers)/i.test(text);
+  if (!hasNumbers) {
+    issues.push({
+      type: 'warning',
+      category: 'content',
+      message: 'No quantifiable achievements detected',
+      suggestion: 'Add numbers, percentages, or metrics to demonstrate impact',
+      severity: 70
+    });
+  }
+  
+  // Check resume length (word count)
+  if (words.length < 400) {
+    issues.push({
+      type: 'critical',
+      category: 'length',
+      message: 'Resume may be too short',
+      suggestion: 'Aim for 400-800 words for a comprehensive resume',
+      severity: 80
+    });
+  } else if (words.length > 1200) {
+    issues.push({
+      type: 'warning',
+      category: 'length',
+      message: 'Resume may be too long',
+      suggestion: 'Keep it concise - aim for 1-2 pages maximum',
+      severity: 50
+    });
+  }
+  
+  return issues;
+}
+
+function calculateSectionScore(sections: SectionAnalysis): number {
+  const weights = {
+    contact: 0.15,
+    summary: 0.15,
+    experience: 0.30,
+    education: 0.20,
+    skills: 0.20
+  };
+  
+  return Math.round(
+    sections.contact.score * weights.contact +
+    sections.summary.score * weights.summary +
+    sections.experience.score * weights.experience +
+    sections.education.score * weights.education +
+    sections.skills.score * weights.skills
+  );
+}
+
+function calculateKeywordScore(keywords: KeywordMatch[]): number {
+  const highImportance = keywords.filter(k => k.importance === 'high');
+  const mediumImportance = keywords.filter(k => k.importance === 'medium');
+  
+  const highMatchRate = highImportance.filter(k => k.found).length / Math.max(1, highImportance.length);
+  const mediumMatchRate = mediumImportance.filter(k => k.found).length / Math.max(1, mediumImportance.length);
+  
+  return Math.round((highMatchRate * 70) + (mediumMatchRate * 30));
+}
+
+function calculateContentScore(issues: ATSIssue[]): number {
+  const criticalIssues = issues.filter(i => i.type === 'critical').length;
+  const warningIssues = issues.filter(i => i.type === 'warning').length;
+  
+  let score = 100;
+  score -= criticalIssues * 20;
+  score -= warningIssues * 10;
+  
+  return Math.max(0, score);
+}
+
+function determineGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
+  if (score >= 90) return 'A';
+  if (score >= 80) return 'B';
+  if (score >= 70) return 'C';
+  if (score >= 60) return 'D';
+  return 'F';
+}
+
+function generateSuggestions(
+  sections: SectionAnalysis,
+  keywords: KeywordMatch[],
+  issues: ATSIssue[],
+  formatting: FormattingAnalysis
+): string[] {
+  const suggestions: string[] = [];
+  
+  // Section-specific suggestions
+  sections.missing.forEach(section => {
+    suggestions.push(`Add a "${section}" section to your resume`);
+  });
+  
+  if (!sections.summary.exists) {
+    suggestions.push('Write a compelling 2-3 sentence professional summary highlighting your key achievements');
+  }
+  
+  if (!sections.experience.hasMetrics) {
+    suggestions.push('Quantify your achievements with numbers, percentages, or dollar amounts');
+  }
+  
+  // Keyword suggestions
+  const missingHighPriority = keywords.filter(k => k.importance === 'high' && !k.found);
+  if (missingHighPriority.length > 0) {
+    suggestions.push(`Include these important keywords: ${missingHighPriority.slice(0, 3).map(k => k.keyword).join(', ')}`);
+  }
+  
+  // Formatting suggestions
+  if (!formatting.readableByATS) {
+    suggestions.push('Simplify formatting - avoid tables, columns, and complex layouts for better ATS compatibility');
+  }
+  
+  // Top issues
+  issues.slice(0, 3).forEach(issue => {
+    if (!suggestions.includes(issue.suggestion)) {
+      suggestions.push(issue.suggestion);
+    }
+  });
+  
+  return suggestions.slice(0, 5);
+}
+
+function generateSectionIssues(sections: SectionAnalysis): ATSIssue[] {
+  const issues: ATSIssue[] = [];
+  
+  if (!sections.contact.exists) {
+    issues.push({
+      type: 'critical',
+      category: 'structure',
+      message: 'Missing contact information',
+      suggestion: 'Add your email address and phone number at the top of your resume',
+      severity: 95
+    });
+  } else if (!sections.contact.complete) {
+    issues.push({
+      type: 'warning',
+      category: 'structure',
+      message: 'Incomplete contact information',
+      suggestion: 'Consider adding your location and LinkedIn profile URL',
+      severity: 50
+    });
+  }
+  
+  if (!sections.experience.exists) {
+    issues.push({
+      type: 'critical',
+      category: 'structure',
+      message: 'No work experience section found',
+      suggestion: 'Add detailed work experience with company names, dates, and achievements',
+      severity: 90
+    });
+  }
+  
+  if (!sections.education.exists) {
+    issues.push({
+      type: 'warning',
+      category: 'structure',
+      message: 'No education section found',
+      suggestion: 'Add your educational background including degree, institution, and graduation year',
+      severity: 70
+    });
+  }
+  
+  if (!sections.skills.exists) {
+    issues.push({
+      type: 'warning',
+      category: 'structure',
+      message: 'No skills section found',
+      suggestion: 'Add a dedicated skills section listing your technical and soft skills',
+      severity: 65
+    });
+  }
+  
+  return issues;
+}
+
+function generateKeywordIssues(keywords: KeywordMatch[]): ATSIssue[] {
+  const issues: ATSIssue[] = [];
+  
+  const missingHigh = keywords.filter(k => k.importance === 'high' && !k.found);
+  if (missingHigh.length > 3) {
+    issues.push({
+      type: 'warning',
+      category: 'keywords',
+      message: `Missing ${missingHigh.length} high-priority industry keywords`,
+      suggestion: 'Review job descriptions in your field and incorporate relevant keywords naturally',
+      severity: 75
+    });
+  }
+  
+  return issues;
+}
+
+function generateFormattingIssues(formatting: FormattingAnalysis): ATSIssue[] {
+  const issues: ATSIssue[] = [];
+  
+  if (!formatting.readableByATS) {
+    issues.push({
+      type: 'critical',
+      category: 'formatting',
+      message: 'Complex formatting detected that may confuse ATS systems',
+      suggestion: 'Use a simple, single-column layout without tables or text boxes',
+      severity: 85
+    });
+  }
+  
+  if (formatting.hasTables) {
+    issues.push({
+      type: 'warning',
+      category: 'formatting',
+      message: 'Tables detected in resume',
+      suggestion: 'Replace tables with simple text formatting for better ATS parsing',
+      severity: 70
+    });
+  }
+  
+  return issues;
+}

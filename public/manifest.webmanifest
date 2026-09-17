@@ -1,0 +1,17 @@
+{
+  "name": "ResumeBuild — ATS-Proof Resume Builder",
+  "short_name": "ResumeBuild",
+  "description": "Build an ATS-proof resume with job-specific examples, country CV rules and free PDF export.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f3ec",
+  "theme_color": "#131f1a",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='2' width='24' height='28' rx='3' fill='%23D9F24F' stroke='%23131F1A' stroke-width='2'/%3E%3Cpath d='M10 12h12M10 17h12M10 22h7' stroke='%23131F1A' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

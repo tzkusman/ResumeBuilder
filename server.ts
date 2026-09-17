@@ -838,6 +838,13 @@ export async function startServer() {
 }
 
 // Standalone entry point (local dev & container environments, skipped on Vercel)
-if (process.env.VERCEL !== "1" && process.env.VERCEL !== "true") {
+const isVercelServerless = Boolean(
+  process.env.VERCEL === "1" ||
+  process.env.VERCEL === "true" ||
+  process.env.VERCEL_ENV ||
+  process.env.NOW_REGION
+);
+
+if (!isVercelServerless && process.env.NODE_ENV !== "test") {
   startServer();
 }

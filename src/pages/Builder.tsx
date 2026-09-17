@@ -8,7 +8,7 @@ import { CreditsModal } from "../components/CreditsModal";
 import { PricingModal } from "../components/PricingModal";
 import { CloudResumesModal } from "../components/CloudResumesModal";
 import ResumeUploadWizard from "../components/ResumeUploadWizard";
-import GuidedTutorialStepper from "../components/GuidedTutorialStepper";
+import { InteractiveMouseTour } from "../components/InteractiveMouseTour";
 import TemplateSection from "../components/TemplateSection";
 import ReviewExportSection from "../components/ReviewExportSection";
 import { useResume, useToast, useAuth, useI18n } from "../store/AppStore";
@@ -148,6 +148,7 @@ export default function Builder() {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [uploadWizardOpen, setUploadWizardOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
   const [creditsState, setCreditsState] = useState<VisitCreditsState>(() => loadCreditsState());
   const [userCurrency] = useState<CurrencyCode>(() => detectLocalCurrency());
   const previewWrap = useRef<HTMLDivElement>(null);
@@ -498,6 +499,18 @@ export default function Builder() {
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-4 py-3">
           <Link to="/" className="group flex items-center gap-2 text-sm font-bold text-ink-soft hover:text-ink"><Icon name="arrow" size={15} className="rotate-180 transition-transform group-hover:-translate-x-0.5" /> {t("builder.home", "Home")}</Link>
           <span className="hidden h-5 w-px bg-ink/20 sm:block" />
+          <button
+            type="button"
+            onClick={() => setTourOpen(true)}
+            className="flex items-center gap-1.5 border-2 border-ink bg-acid px-2.5 py-1.5 text-xs font-black uppercase text-ink shadow-[2px_2px_0_0_var(--color-ink)] transition-all hover:bg-amber-300 hover:-translate-y-0.5"
+            title="Interactive Mouse Pointer Tutorial Tour"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink opacity-75"></span>
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-ink"></span>
+            </span>
+            <span>🖱️ Interactive Tour</span>
+          </button>
           <button onClick={() => setShowAts(!showAts)} className={`flex items-center gap-2 border-2 px-3 py-1.5 text-sm font-bold transition-colors ${report.score >= 80 ? "border-pine bg-pine text-paper" : report.score >= 55 ? "border-ink bg-acid-soft" : "border-coral bg-card text-coral"}`}>
             <Icon name="gauge" size={15} /> ATS {report.score}
           </button>
@@ -582,7 +595,7 @@ export default function Builder() {
               <Icon name="cloud" size={15} /> {saving ? t("builder.saving", "Saving…") : t("builder.btn.cloudSave", "Cloud save")}
             </button>
             <div className="relative">
-              <button onClick={() => setExportOpen(!exportOpen)} className="hs-sm flex items-center gap-2 border-2 border-ink bg-acid px-4 py-2 text-sm font-bold transition-all hover:-translate-y-0.5">
+              <button id="tour-export-button" onClick={() => setExportOpen(!exportOpen)} className="hs-sm flex items-center gap-2 border-2 border-ink bg-acid px-4 py-2 text-sm font-bold transition-all hover:-translate-y-0.5">
                 <Icon name="download" size={16} /> {t("builder.export", "Export")} <Icon name="chev" size={13} />
               </button>
               {exportOpen && (
@@ -616,7 +629,7 @@ export default function Builder() {
         {/* ------------ editor column ------------ */}
         <div className="space-y-4">
           {/* Target Job & Real-Time Automated Keyword Insertion Assistant */}
-          <div className="border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)]">
+          <div id="tour-jd-assistant" className="border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)]">
             <div className="flex items-center justify-between p-3 border-b border-ink/15 bg-paper/60">
               <div className="flex items-center gap-2">
                 <Icon name="check" size={15} className="text-pine" />
@@ -757,27 +770,42 @@ export default function Builder() {
             )}
           </div>
 
-          {/* Interactive Next-Next Guided Tutorial Stepper */}
-          <GuidedTutorialStepper
-            currentTab={tab}
-            onSelectTab={(newTab) => {
-              setTab(newTab);
-            }}
-            resume={resume}
-            tutorialMode={tutorialMode}
-            onToggleTutorialMode={(enabled) => setTutorialMode(enabled)}
-            onOpenExport={() => setTab("review")}
-            onOpenAts={() => setShowAts(true)}
-            onPrint={() => onExport("pdf")}
-          />
+          {/* Step-by-Step Mouse Guide Launcher Bar */}
+          <div className="flex items-center justify-between border-2 border-ink bg-paper p-2.5 shadow-[3px_3px_0_0_var(--color-ink)]">
+            <div className="flex items-center gap-2.5">
+              <span className="grid h-8 w-8 place-items-center border border-ink bg-acid font-mono text-sm shadow-sm">
+                🖱️
+              </span>
+              <div>
+                <p className="font-display text-xs font-black text-ink uppercase tracking-wide">
+                  Interactive Mouse Guide
+                </p>
+                <p className="text-[11px] text-ink-soft">
+                  Step-by-step animated mouse pointer walks you through every section.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setTourOpen(true);
+                try { localStorage.setItem("rb_tour_seen", "true"); } catch {}
+              }}
+              className="flex items-center gap-1.5 border-2 border-ink bg-ink px-3 py-1.5 font-mono text-[11px] font-black uppercase text-acid shadow-[2px_2px_0_0_var(--color-acid)] transition-all hover:bg-pine hover:border-pine hover:text-white hover:-translate-y-0.5"
+            >
+              <span>Start Tour</span>
+              <span>→</span>
+            </button>
+          </div>
 
-          <div className="flex flex-wrap gap-1.5 border-2 border-ink bg-ink p-1.5">
+          <div id="tour-tabs-bar" className="flex flex-wrap gap-1.5 border-2 border-ink bg-ink p-1.5">
             {sections.map((s) => (
               <button key={s.id} onClick={() => setTab(s.id)} className={`px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${tab === s.id ? "bg-acid text-ink" : "text-paper/70 hover:text-paper"}`}>{s.label}</button>
             ))}
           </div>
 
           {tab === "contact" && (
+            <div id="tour-contact-section">
             <SectionShell title={t("builder.contactTitle", "Contact details")} hint={t("builder.contactHint", "Parsers read these first")} open onToggle={() => {}}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field id="contact-fullName" label={t("builder.fullName", "Full name")} value={resume.contact.fullName} onChange={(v) => setContact("fullName", v)} placeholder="Alex Morgan" />
@@ -908,6 +936,7 @@ export default function Builder() {
                 </div>
               </div>
             </SectionShell>
+            </div>
           )}
 
           {tab === "summary" && (
@@ -1393,7 +1422,7 @@ export default function Builder() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 border-2 border-ink bg-card px-4 py-3">
+          <div id="tour-templates-bar" className="flex flex-wrap items-center gap-3 border-2 border-ink bg-card px-4 py-3">
             <span className="kicker text-ink-soft">{t("builder.template", "Template")}</span>
             <div className="flex flex-wrap gap-1.5">
               {TEMPLATES.map((tp) => (
@@ -1470,6 +1499,7 @@ export default function Builder() {
 
             {/* Continuous Full Preview Container without A4 height boundaries */}
             <div
+              id="tour-preview-doc"
               className="mx-auto border-2 border-ink/30 bg-white shadow-[0_18px_50px_-20px_rgba(19,31,26,0.35)] relative transition-all"
               style={{
                 width: 794 * effectiveScale,
@@ -1665,6 +1695,13 @@ export default function Builder() {
       <ResumeUploadWizard
         isOpen={uploadWizardOpen}
         onClose={() => setUploadWizardOpen(false)}
+      />
+
+      {/* Interactive Mouse Pointer Guide Tour */}
+      <InteractiveMouseTour
+        isOpen={tourOpen}
+        onClose={() => setTourOpen(false)}
+        onSelectTab={(newTab) => setTab(newTab)}
       />
     </div>
   );

@@ -3,24 +3,23 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
   "functions": {
-    "api/index.ts": {
+    "api/**/*.ts": {
       "includeFiles": "prisma/**",
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/api?__route=$1"
+    },
+    {
       "source": "/api",
       "destination": "/api"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/((?!api|assets/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],

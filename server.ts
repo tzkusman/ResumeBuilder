@@ -8,20 +8,33 @@ function hashPassword(pass: string): string {
   return crypto.createHash("sha256").update(pass).digest("hex");
 }
 
-let prisma: PrismaClient | null = null;
-function getDb() {
-  if (!prisma) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set. Please configure DATABASE_URL in your environment.");
-    }
-    prisma = new PrismaClient();
+declare global {
+  var __prismaClient: PrismaClient | undefined;
+}
+
+function getDb(): PrismaClient {
+  if (globalThis.__prismaClient) {
+    return globalThis.__prismaClient;
   }
-  return prisma;
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is not set. Please configure DATABASE_URL in your environment.");
+  }
+  const client = new PrismaClient();
+  globalThis.__prismaClient = client;
+  return client;
 }
 
 export function createApp() {
   const app = express();
-  app.use(express.json({ limit: "25mb" }));
+
+  // Safe body parsing: If Vercel or upstream serverless runtime already parsed the body,
+  // skip stream consumption to prevent 30s timeouts.
+  app.use((req, res, next) => {
+    if (req.body && typeof req.body === "object") {
+      return next();
+    }
+    express.json({ limit: "25mb" })(req, res, next);
+  });
 
   // Root /api endpoint for discovery and ping
   app.get(["/api", "/api/"], (_req, res) => {
@@ -845,6 +858,14 @@ const isVercelServerless = Boolean(
   process.env.NOW_REGION
 );
 
-if (!isVercelServerless && process.env.NODE_ENV !== "test") {
+const isMainModule = Boolean(
+  process.argv[1] && (
+    process.argv[1].endsWith("server.ts") ||
+    process.argv[1].endsWith("server.cjs") ||
+    process.argv[1].endsWith("server.js")
+  )
+);
+
+if (isMainModule && !isVercelServerless && process.env.NODE_ENV !== "test") {
   startServer();
 }

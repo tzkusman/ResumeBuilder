@@ -164,7 +164,7 @@ export default function SummitTemplate({ data, pageNumber, onSelectSection }: Te
 
       <footer className="mt-8 border-t border-slate-300 pt-2 flex items-center justify-between font-mono text-[10px] text-slate-400 uppercase">
         <span>Confidential Resume</span>
-        <span>{isTwoPage ? "Page 1 of 2" : "Page 1 of 1"}</span>
+        <span>Executive Resume</span>
       </footer>
     </div>
   );
@@ -277,13 +277,5 @@ export default function SummitTemplate({ data, pageNumber, onSelectSection }: Te
     </div>
   );
 
-  if (pageNumber === 1) return renderPage1();
-  if (pageNumber === 2) return renderPage2();
-
-  return (
-    <>
-      {renderPage1()}
-      {isTwoPage && renderPage2()}
-    </>
-  );
+  return renderPage1();
 }

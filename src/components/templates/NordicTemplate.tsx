@@ -175,7 +175,7 @@ export default function NordicTemplate({ data, pageNumber, onSelectSection }: Te
       {/* Page Footer */}
       <footer className="mt-8 border-t border-neutral-200 pt-3 flex items-center justify-between font-mono text-[10px] text-neutral-400">
         <span>Nordic Minimal</span>
-        <span>{isTwoPage ? "Page 1 of 2" : "Page 1 of 1"}</span>
+        <span>Curriculum Vitae</span>
       </footer>
     </div>
   );
@@ -294,13 +294,5 @@ export default function NordicTemplate({ data, pageNumber, onSelectSection }: Te
     </div>
   );
 
-  if (pageNumber === 1) return renderPage1();
-  if (pageNumber === 2) return renderPage2();
-
-  return (
-    <>
-      {renderPage1()}
-      {isTwoPage && renderPage2()}
-    </>
-  );
+  return renderPage1();
 }

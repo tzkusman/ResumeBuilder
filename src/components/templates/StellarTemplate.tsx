@@ -99,7 +99,7 @@ export default function StellarTemplate({ data, pageNumber, onSelectSection }: T
         </div>
 
         <p className="font-mono text-[9px] uppercase tracking-wider text-neutral-400">
-          {isTwoPage ? "Page 1 of 2" : "Page 1 of 1"}
+          Curriculum Vitae
         </p>
       </aside>
 
@@ -287,13 +287,5 @@ export default function StellarTemplate({ data, pageNumber, onSelectSection }: T
     </div>
   );
 
-  if (pageNumber === 1) return renderPage1();
-  if (pageNumber === 2) return renderPage2();
-
-  return (
-    <>
-      {renderPage1()}
-      {isTwoPage && renderPage2()}
-    </>
-  );
+  return renderPage1();
 }

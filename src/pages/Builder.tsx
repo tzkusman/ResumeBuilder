@@ -1441,34 +1441,10 @@ export default function Builder() {
 
               <span className="hidden h-4 w-px bg-ink/20 sm:block" />
 
-              {/* 1 Page / 2 Pages format toggle */}
-              <div className="inline-flex border border-ink/30 bg-white p-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    set((r) => ({ ...r, pageCount: 1 }));
-                    toast("Strict 1-Page Resume format enforced (ATS standard).", "ok");
-                  }}
-                  className={`px-2.5 py-0.5 text-xs font-bold transition-colors ${
-                    resume.pageCount !== 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"
-                  }`}
-                  title="Enforce 1-Page Resume format (ATS Standard)"
-                >
-                  1 Page
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    set((r) => ({ ...r, pageCount: 2 }));
-                    toast("2-Page Extended Resume format enabled.", "ok");
-                  }}
-                  className={`px-2.5 py-0.5 text-xs font-bold transition-colors ${
-                    resume.pageCount === 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"
-                  }`}
-                  title="2-Page layout for extended career history"
-                >
-                  2 Pages
-                </button>
+              {/* Unified Single-Page Preview Indicator */}
+              <div className="hidden sm:inline-flex items-center gap-1.5 border border-ink/20 bg-white px-2.5 py-1 text-xs font-mono font-bold text-ink">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span>Single Page (Auto-Expands)</span>
               </div>
             </div>
 
@@ -1570,7 +1546,6 @@ export default function Builder() {
               >
                 <ResumeDoc
                   data={resume}
-                  pageNumber={effectivePages === 2 && previewPage !== "all" ? previewPage : undefined}
                   onSelectSection={handleSelectSection}
                 />
               </div>

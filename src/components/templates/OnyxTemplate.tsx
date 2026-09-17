@@ -188,7 +188,7 @@ export default function OnyxTemplate({ data, pageNumber, onSelectSection }: Temp
 
       <footer className="mt-6 border-t-2 border-neutral-900 pt-2 flex items-center justify-between font-mono text-[10px] text-neutral-500">
         <span>ONYX</span>
-        <span>{isTwoPage ? "Page 01 / 02" : "Page 01 / 01"}</span>
+        <span>Executive Brief</span>
       </footer>
     </div>
   );
@@ -304,13 +304,5 @@ export default function OnyxTemplate({ data, pageNumber, onSelectSection }: Temp
     </div>
   );
 
-  if (pageNumber === 1) return renderPage1();
-  if (pageNumber === 2) return renderPage2();
-
-  return (
-    <>
-      {renderPage1()}
-      {isTwoPage && renderPage2()}
-    </>
-  );
+  return renderPage1();
 }

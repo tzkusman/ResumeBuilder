@@ -174,7 +174,7 @@ export default function CascadeTemplate({ data, pageNumber, onSelectSection }: T
 
       <footer className="mt-6 border-t border-neutral-200 pt-2 flex items-center justify-between font-mono text-[10px] text-neutral-400">
         <span>Cascade Format</span>
-        <span>{isTwoPage ? "Page 1 of 2" : "Page 1 of 1"}</span>
+        <span>Curriculum Vitae</span>
       </footer>
     </div>
   );
@@ -289,13 +289,5 @@ export default function CascadeTemplate({ data, pageNumber, onSelectSection }: T
     </div>
   );
 
-  if (pageNumber === 1) return renderPage1();
-  if (pageNumber === 2) return renderPage2();
-
-  return (
-    <>
-      {renderPage1()}
-      {isTwoPage && renderPage2()}
-    </>
-  );
+  return renderPage1();
 }

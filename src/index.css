@@ -143,7 +143,10 @@ body {
   .edu-entry,
   .project-entry,
   header,
-  aside {
+  aside,
+  li,
+  article,
+  [data-subfield] {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }

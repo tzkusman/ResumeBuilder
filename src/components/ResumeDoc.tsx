@@ -824,27 +824,7 @@ export default function ResumeDoc({
     if (data.template === "onyx") return <OnyxTemplate data={data} pageNumber={pageNumber} onSelectSection={onSelectSection} />;
     if (data.template === "stellar") return <StellarTemplate data={data} pageNumber={pageNumber} onSelectSection={onSelectSection} />;
   const renderWithPage2 = (page1Content: React.ReactNode) => {
-    if (pageNumber === 1) return <>{page1Content}</>;
-    if (pageNumber === 2) {
-      if (!isTwoPage) {
-        return (
-          <div className="resume-sheet flex flex-col items-center justify-center p-12 text-neutral-400 font-mono text-xs text-center bg-white">
-            <div className="rounded-full bg-neutral-100 p-4 mb-3">
-              <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            </div>
-            <p className="text-sm font-bold text-neutral-800 mb-1">Single-Page Resume</p>
-            <p className="max-w-xs text-neutral-500">All content fits comfortably on Page 1. Add more experience, projects, or certifications to automatically extend to Page 2.</p>
-          </div>
-        );
-      }
-      return <StandardPage2 data={data} onSelectSection={onSelectSection} />;
-    }
-    return (
-      <>
-        {page1Content}
-        {isTwoPage && <StandardPage2 data={data} onSelectSection={onSelectSection} />}
-      </>
-    );
+    return <>{page1Content}</>;
   };
 
   // =========================================================================

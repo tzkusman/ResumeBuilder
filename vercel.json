@@ -4,13 +4,23 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "prisma/**",
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api",
+      "destination": "/api"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api"
     },
     {
-      "source": "/((?!api).*)",
+      "source": "/((?!api|assets/).*)",
       "destination": "/index.html"
     }
   ],

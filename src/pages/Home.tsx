@@ -67,7 +67,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
             </p>
           </Reveal>
           <Reveal delay={90}>
-            <h1 className="mt-5 font-display text-[44px] font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-[72px]">
+            <h1 id="home-hero-headline" className="mt-5 font-display text-[44px] font-black leading-[1.02] tracking-tight sm:text-6xl lg:text-[72px]">
               {t("hero.title1")}{" "}
               <em className="relative inline-block text-pine">
                 {t("hero.title2")}
@@ -81,7 +81,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">{t("hero.sub")}</p>
           </Reveal>
           <Reveal delay={260}>
-            <div className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
+            <div id="home-hero-cta-buttons" className="mt-8 flex flex-wrap items-center gap-3 sm:gap-4">
               <Link
                 to="/builder"
                 onClick={() => track("cta_click", { label: "home_hero_builder" })}
@@ -114,7 +114,7 @@ function Hero({ importSuccess = false }: { importSuccess?: boolean }) {
         <Reveal delay={200} className="relative">
           <div className="relative mx-auto max-w-[520px]">
             <div className="absolute -inset-3 rotate-2 border-2 border-ink/15 bg-card" />
-            <div className="relative overflow-hidden border-2 border-ink bg-white hs-acid">
+            <div id="home-hero-live-preview" className="relative overflow-hidden border-2 border-ink bg-white hs-acid">
               <div className="flex items-center justify-between border-b-2 border-ink bg-acid px-4 py-2">
                 <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em]">{t("hero.livePreview", "Live preview · A4")}</span>
                 <span className="flex gap-1.5">

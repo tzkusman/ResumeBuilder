@@ -41,18 +41,18 @@ export default function ReviewExportSection({
   return (
     <div className="space-y-6">
       {/* ATS Score Overview Card */}
-      <div className="border-2 border-ink bg-card p-5 shadow-[4px_4px_0_0_var(--color-ink)]">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-ink/15 pb-4">
-          <div className="flex items-center gap-4">
-            <Gauge value={score} size={68} />
+      <div className="border-2 border-ink bg-card p-4 sm:p-5 shadow-[4px_4px_0_0_var(--color-ink)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-ink/15 pb-4">
+          <div className="flex items-center gap-3.5">
+            <Gauge value={score} size={76} label="ATS" />
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-display text-xl font-black text-ink">{score}/100</span>
-                <span className={`border px-2 py-0.5 font-mono text-[10px] font-bold uppercase ${scoreBadge.color}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-display text-2xl font-black text-ink leading-none">{score}/100</span>
+                <span className={`border px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${scoreBadge.color}`}>
                   {scoreBadge.text}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs text-neutral-600">
+              <p className="mt-1 text-xs text-neutral-600 leading-snug">
                 Automated ATS resume scan based on recruiter parsers &amp; ranking heuristics.
               </p>
             </div>
@@ -61,7 +61,7 @@ export default function ReviewExportSection({
           <button
             type="button"
             onClick={onOpenJd}
-            className="flex items-center gap-1.5 border-2 border-pine bg-pine/10 px-3 py-1.5 font-mono text-xs font-bold text-pine-deep hover:bg-pine/20 transition-colors"
+            className="self-start sm:self-auto flex items-center gap-1.5 border-2 border-pine bg-pine/10 px-3 py-1.5 font-mono text-xs font-bold text-pine-deep hover:bg-pine/20 transition-colors"
           >
             <Icon name="zap" size={13} />
             <span>Target Job Match</span>
@@ -69,13 +69,13 @@ export default function ReviewExportSection({
         </div>
 
         {/* Breakdown Items */}
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div className="border border-ink/20 bg-paper p-2.5">
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase font-bold text-ink-soft">
-              <span>Passed Checks</span>
-              <span className="text-pine font-bold">{passedChecks.length}/{report.checks.length}</span>
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="border border-ink/20 bg-paper p-3 flex flex-col justify-between">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-ink-soft leading-tight">Passed Checks</span>
+              <span className="font-mono text-xs font-black text-pine shrink-0">{passedChecks.length}/{report.checks.length}</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
+            <div className="mt-2 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
               <div
                 className="h-full bg-pine transition-all duration-300"
                 style={{ width: `${Math.round((passedChecks.length / (report.checks.length || 1)) * 100)}%` }}
@@ -83,12 +83,12 @@ export default function ReviewExportSection({
             </div>
           </div>
 
-          <div className="border border-ink/20 bg-paper p-2.5">
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase font-bold text-ink-soft">
-              <span>Layout Check</span>
-              <span className="text-ink">{resume.template !== "ledger" ? "100%" : "50%"}</span>
+          <div className="border border-ink/20 bg-paper p-3 flex flex-col justify-between">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-ink-soft leading-tight">Layout Check</span>
+              <span className="font-mono text-xs font-black text-ink shrink-0">{resume.template !== "ledger" ? "100%" : "50%"}</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
+            <div className="mt-2 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
               <div
                 className="h-full bg-pine transition-all duration-300"
                 style={{ width: resume.template !== "ledger" ? "100%" : "50%" }}
@@ -96,12 +96,12 @@ export default function ReviewExportSection({
             </div>
           </div>
 
-          <div className="border border-ink/20 bg-paper p-2.5">
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase font-bold text-ink-soft">
-              <span>Keywords &amp; Skills</span>
-              <span className="text-ink">{resume.skills.length >= 6 ? "100%" : `${Math.round((resume.skills.length / 6) * 100)}%`}</span>
+          <div className="border border-ink/20 bg-paper p-3 flex flex-col justify-between">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-ink-soft leading-tight">Keywords &amp; Skills</span>
+              <span className="font-mono text-xs font-black text-ink shrink-0">{resume.skills.length >= 6 ? "100%" : `${Math.round((resume.skills.length / 6) * 100)}%`}</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
+            <div className="mt-2 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
               <div
                 className="h-full bg-pine transition-all duration-300"
                 style={{ width: `${Math.min(100, Math.round((resume.skills.length / 6) * 100))}%` }}
@@ -109,12 +109,12 @@ export default function ReviewExportSection({
             </div>
           </div>
 
-          <div className="border border-ink/20 bg-paper p-2.5">
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase font-bold text-ink-soft">
-              <span>Experience Bullets</span>
-              <span className="text-ink">{resume.experience.length > 0 ? "Pass" : "0"}</span>
+          <div className="border border-ink/20 bg-paper p-3 flex flex-col justify-between">
+            <div className="flex items-baseline justify-between gap-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-ink-soft leading-tight">Experience Bullets</span>
+              <span className="font-mono text-xs font-black text-ink shrink-0">{resume.experience.length > 0 ? "Pass" : "0"}</span>
             </div>
-            <div className="mt-1.5 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
+            <div className="mt-2 h-1.5 w-full bg-neutral-200 overflow-hidden rounded-full">
               <div
                 className="h-full bg-pine transition-all duration-300"
                 style={{ width: resume.experience.length > 0 ? "100%" : "20%" }}

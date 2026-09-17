@@ -58,7 +58,15 @@ export function Reveal({ children, className = "", delay = 0 }: { children: Reac
 }
 
 /* ---------------- Score gauge ---------------- */
-export function Gauge({ value, size = 132, label = "ATS score" }: { value: number; size?: number; label?: string }) {
+export function Gauge({
+  value,
+  size = 132,
+  label = "ATS score",
+}: {
+  value: number;
+  size?: number;
+  label?: string;
+}) {
   const [shown, setShown] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -76,15 +84,61 @@ export function Gauge({ value, size = 132, label = "ATS score" }: { value: numbe
   const circ = 2 * Math.PI * r;
   const arc = circ * 0.75;
   const color = shown >= 80 ? "var(--color-pine)" : shown >= 55 ? "#a8821a" : "var(--color-coral)";
+
+  // Dynamically calculate font sizes so text NEVER collides or overflows the circular arc
+  const numberFontSize = Math.max(16, Math.round(size * 0.27));
+  const labelFontSize = Math.max(7.5, Math.round(size * 0.082));
+
   return (
-    <div ref={ref} className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 128 128" width={size} height={size} style={{ transform: "rotate(135deg)" }}>
-        <circle cx="64" cy="64" r={r} fill="none" stroke="var(--color-line)" strokeWidth="10" strokeDasharray={`${arc} ${circ}`} strokeLinecap="round" />
-        <circle cx="64" cy="64" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" className="gauge-arc" strokeDasharray={`${(arc * Math.max(shown, 0)) / 100} ${circ}`} />
+    <div
+      ref={ref}
+      className="relative inline-flex shrink-0 items-center justify-center select-none"
+      style={{ width: size, height: size }}
+    >
+      <svg
+        viewBox="0 0 128 128"
+        width={size}
+        height={size}
+        className="overflow-visible"
+        style={{ transform: "rotate(135deg)" }}
+      >
+        <circle
+          cx="64"
+          cy="64"
+          r={r}
+          fill="none"
+          stroke="var(--color-line)"
+          strokeWidth="10"
+          strokeDasharray={`${arc} ${circ}`}
+          strokeLinecap="round"
+        />
+        <circle
+          cx="64"
+          cy="64"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="10"
+          strokeLinecap="round"
+          className="gauge-arc"
+          strokeDasharray={`${(arc * Math.max(shown, 0)) / 100} ${circ}`}
+        />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-4xl font-black leading-none" style={{ color }}>{Math.round(shown)}</span>
-        <span className="kicker mt-1.5 text-ink-soft">{label}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-1 text-center">
+        <span
+          className="font-display font-black leading-none tracking-tight"
+          style={{ fontSize: `${numberFontSize}px`, color }}
+        >
+          {Math.round(shown)}
+        </span>
+        {label ? (
+          <span
+            className="font-mono font-bold uppercase tracking-wider text-ink-soft leading-none mt-1"
+            style={{ fontSize: `${labelFontSize}px` }}
+          >
+            {label}
+          </span>
+        ) : null}
       </div>
     </div>
   );

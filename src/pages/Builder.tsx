@@ -142,6 +142,7 @@ export default function Builder() {
   const [jdOpen, setJdOpen] = useState(false);
   const [jdAnalyzed, setJdAnalyzed] = useState<ReturnType<typeof matchKeywords> | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [creditsModalOpen, setCreditsModalOpen] = useState(false);
@@ -154,6 +155,35 @@ export default function Builder() {
   const previewWrap = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const bootRef = useRef(false);
+
+  // Auto-trigger interactive mouse tour for new users on their first visit or when tour param is present
+  useEffect(() => {
+    try {
+      const tourParam = params.get("tour") === "true";
+      const tourSeen = localStorage.getItem("rb_interactive_tour_seen");
+      if (tourParam || !tourSeen) {
+        const timer = setTimeout(() => {
+          setTourOpen(true);
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    } catch {}
+  }, [params]);
+
+  // Close more menu and export dropdown on outside click
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("#builder-more-menu-container")) {
+        setMoreMenuOpen(false);
+      }
+      if (!target.closest("#tour-export-button-container")) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   // Record daily visit and award streak credits on mount
   useEffect(() => {
@@ -496,110 +526,95 @@ export default function Builder() {
 
       {/* toolbar */}
       <div className="sticky top-16 z-40 border-b-2 border-ink bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-4 py-3">
-          <Link to="/" className="group flex items-center gap-2 text-sm font-bold text-ink-soft hover:text-ink"><Icon name="arrow" size={15} className="rotate-180 transition-transform group-hover:-translate-x-0.5" /> {t("builder.home", "Home")}</Link>
-          <span className="hidden h-5 w-px bg-ink/20 sm:block" />
-          <button
-            type="button"
-            onClick={() => setTourOpen(true)}
-            className="flex items-center gap-1.5 border-2 border-ink bg-acid px-2.5 py-1.5 text-xs font-black uppercase text-ink shadow-[2px_2px_0_0_var(--color-ink)] transition-all hover:bg-amber-300 hover:-translate-y-0.5"
-            title="Interactive Mouse Pointer Tutorial Tour"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-ink"></span>
-            </span>
-            <span>🖱️ Interactive Tour</span>
-          </button>
-          <button onClick={() => setShowAts(!showAts)} className={`flex items-center gap-2 border-2 px-3 py-1.5 text-sm font-bold transition-colors ${report.score >= 80 ? "border-pine bg-pine text-paper" : report.score >= 55 ? "border-ink bg-acid-soft" : "border-coral bg-card text-coral"}`}>
-            <Icon name="gauge" size={15} /> ATS {report.score}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCreditsModalOpen(true)}
-            className="flex items-center gap-1.5 border-2 border-coral/50 bg-coral/10 px-2.5 py-1 text-xs font-bold text-coral transition-all hover:bg-coral/20"
-            title="Daily Visit Credits & Pro Subscription Conversion"
-          >
-            <span>🔥</span>
-            <span className="font-mono text-[11px] font-bold">{creditsState.streakDays}d Streak · {creditsState.credits} Cr</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setPricingModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 border border-ink/30 bg-card px-2.5 py-1 text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
-            title="Localized Pricing & Country Currency Strategy"
-          >
-            <span>{CURRENCY_MAP[userCurrency]?.flag || "🌐"}</span>
-            <span className="font-mono text-[11px]">{CURRENCY_MAP[userCurrency]?.symbol || "$"} Pricing</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setResetModalOpen(true)}
-            className="flex items-center gap-1.5 border border-coral/40 bg-card px-2.5 py-1 text-xs font-bold text-coral transition-colors hover:bg-coral/10 hover:border-coral"
-            title="Reset all resume data with confirmation"
-          >
-            <Icon name="trash" size={13} />
-            <span className="hidden sm:inline">Reset All</span>
-          </button>
-          <span className="hidden font-mono text-[10.5px] text-ink-soft xl:block">
-            {savedAt ? `autosaved ${new Date(savedAt).toLocaleTimeString()}` : "autosave on"}
-          </span>
-          <div className="hidden items-center gap-1.5 lg:flex">
-            <span className="font-mono text-[10px] uppercase text-ink-soft">{t("builder.sample", "Sample:")}</span>
-            <select
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val) {
-                  if (loadRole(val)) toast(`Loaded ${getRoleTitle(val, getProfession(val)?.title)} sample.`, "ok");
-                  e.target.value = "";
-                }
-              }}
-              defaultValue=""
-              className="border border-ink/25 bg-card px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft hover:border-ink hover:text-ink cursor-pointer"
+        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+          {/* Left section: Navigation & ATS Health */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/"
+              className="group flex items-center gap-1.5 text-xs sm:text-sm font-bold text-ink-soft hover:text-ink transition-colors"
             >
-              <option value="" disabled>{t("builder.loadSample", "Load role sample…")}</option>
-              {PROFESSIONS.map((p) => (
-                <option key={p.slug} value={p.slug}>{getRoleTitle(p.slug, p.title)}</option>
-              ))}
-            </select>
+              <Icon name="arrow" size={14} className="rotate-180 transition-transform group-hover:-translate-x-0.5" />
+              <span>{t("builder.home", "Home")}</span>
+            </Link>
+
+            <span className="h-4 w-px bg-ink/20" />
+
+            {/* Compact ATS Score Pill */}
+            <button
+              type="button"
+              onClick={() => setShowAts(!showAts)}
+              className={`flex items-center gap-1.5 border-2 px-2.5 py-1 text-xs font-bold transition-all hover:scale-105 ${
+                report.score >= 80
+                  ? "border-pine bg-pine text-paper"
+                  : report.score >= 55
+                  ? "border-ink bg-acid-soft text-ink"
+                  : "border-coral bg-card text-coral"
+              }`}
+              title="View full ATS 14-parameter report & score breakdown"
+            >
+              <Icon name="gauge" size={13} />
+              <span>ATS {report.score}</span>
+            </button>
+
+            {/* Guided Tour Trigger Button */}
+            <button
+              type="button"
+              onClick={() => setTourOpen(true)}
+              className="flex items-center gap-1.5 border-2 border-ink bg-acid px-2.5 py-1 text-xs font-black uppercase text-ink shadow-[2px_2px_0_0_var(--color-ink)] transition-all hover:bg-amber-300 hover:-translate-y-0.5"
+              title="Step-by-Step Interactive Guide"
+            >
+              <span>🖱️ Tour</span>
+            </button>
           </div>
-          <div className="ml-auto flex items-center gap-2.5">
-            {user && isPro && (
-              <span className="hidden items-center gap-1.5 border-2 border-ink bg-ink px-2.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-acid lg:flex"><Icon name="zap" size={13} /> {t("builder.proUnlimited", "Pro · unlimited")}</span>
-            )}
-            {user && !isPro && freeExportsLeft > 0 && (
-              <span className="hidden items-center gap-1.5 border border-pine/50 bg-acid-soft px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-pine-deep lg:flex"><Icon name="star" size={13} /> {freeExportsLeft} {t("builder.freeLeft", "free export left")}</span>
-            )}
-            {!user && (
-              <Link to="/auth?next=/builder" className="hidden items-center gap-1.5 border border-dashed border-ink/40 px-2.5 py-1.5 font-mono text-[10.5px] font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink lg:flex"><Icon name="user" size={13} /> {t("builder.signInOneFree", "Sign in → 1 free export")}</Link>
-            )}
+
+          {/* Right section: Sample, Upload, Export, More Menu */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Quick Role Sample Loader */}
+            <div className="hidden items-center gap-1.5 md:flex">
+              <span className="font-mono text-[10px] uppercase font-bold text-ink-soft">Sample:</span>
+              <select
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val) {
+                    if (loadRole(val)) toast(`Loaded ${getRoleTitle(val, getProfession(val)?.title)} sample.`, "ok");
+                    e.target.value = "";
+                  }
+                }}
+                defaultValue=""
+                className="border border-ink/25 bg-card px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft hover:border-ink hover:text-ink cursor-pointer"
+              >
+                <option value="" disabled>{t("builder.loadSample", "Role sample…")}</option>
+                {PROFESSIONS.map((p) => (
+                  <option key={p.slug} value={p.slug}>{getRoleTitle(p.slug, p.title)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Upload CV */}
             <button
               type="button"
               onClick={() => setUploadWizardOpen(true)}
-              className="flex items-center gap-1.5 border border-pine/60 bg-pine/10 px-2.5 py-1.5 text-xs font-bold text-pine-deep transition-colors hover:bg-pine/20"
-              title="Upload existing resume (PDF/DOCX) with Step-by-Step processing"
+              className="flex items-center gap-1.5 border border-pine/60 bg-pine/10 px-2.5 py-1 text-xs font-bold text-pine-deep transition-colors hover:bg-pine/20"
+              title="Upload existing resume (PDF/DOCX) with step-by-step processing"
             >
-              <Icon name="upload" size={14} className="text-pine-deep" />
-              <span className="hidden md:inline">Upload &amp; Process CV</span>
-              <span className="md:hidden">Upload</span>
+              <Icon name="upload" size={13} className="text-pine-deep" />
+              <span className="hidden sm:inline">Upload CV</span>
+              <span className="sm:hidden">Upload</span>
             </button>
-            <button
-              onClick={() => setCloudModalOpen(true)}
-              className="flex items-center gap-1.5 border border-ink/30 bg-card px-2.5 py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-paper"
-              title="Open database cloud workspace & saved resumes"
-            >
-              <Icon name="cloud" size={14} />
-              <span>My Resumes</span>
-            </button>
-            <button onClick={() => void cloudSave()} disabled={saving} className="hidden items-center gap-2 border border-ink/30 px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:flex">
-              <Icon name="cloud" size={15} /> {saving ? t("builder.saving", "Saving…") : t("builder.btn.cloudSave", "Cloud save")}
-            </button>
-            <div className="relative">
-              <button id="tour-export-button" onClick={() => setExportOpen(!exportOpen)} className="hs-sm flex items-center gap-2 border-2 border-ink bg-acid px-4 py-2 text-sm font-bold transition-all hover:-translate-y-0.5">
-                <Icon name="download" size={16} /> {t("builder.export", "Export")} <Icon name="chev" size={13} />
+
+            {/* 1-Click Export Dropdown */}
+            <div id="tour-export-button-container" className="relative">
+              <button
+                id="tour-export-button"
+                onClick={() => setExportOpen(!exportOpen)}
+                className="hs-sm flex items-center gap-1.5 border-2 border-ink bg-acid px-3.5 py-1 text-xs sm:text-sm font-bold transition-all hover:-translate-y-0.5"
+              >
+                <Icon name="download" size={15} />
+                <span>{t("builder.export", "Export")}</span>
+                <Icon name="chev" size={12} className={`transition-transform ${exportOpen ? "rotate-180" : ""}`} />
               </button>
               {exportOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-64 border-2 border-ink bg-card hs-sm">
+                <div className="absolute right-0 top-full z-50 mt-1.5 w-64 border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)]">
                   {([
                     ["pdf", t("builder.exportPdf", "PDF — ATS-safe print"), "doc"],
                     ["docx", t("builder.exportDocx", "DOCX — editable in Word"), "edit"],
@@ -621,6 +636,58 @@ export default function Builder() {
                 </div>
               )}
             </div>
+
+            {/* Clean More Options Dropdown Menu */}
+            <div id="builder-more-menu-container" className="relative">
+              <button
+                type="button"
+                onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                className="flex items-center gap-1 border border-ink/30 bg-card px-2.5 py-1 text-xs font-bold text-ink-soft hover:border-ink hover:text-ink transition-colors"
+                title="More actions & options"
+              >
+                <span>•••</span>
+              </button>
+              {moreMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1.5 w-56 border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)] p-1.5 text-xs">
+                  <button
+                    onClick={() => { setCloudModalOpen(true); setMoreMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left font-semibold text-ink hover:bg-acid-soft transition-colors"
+                  >
+                    <Icon name="cloud" size={14} className="text-pine" />
+                    <span>My Saved Resumes</span>
+                  </button>
+                  <button
+                    onClick={() => { void cloudSave(); setMoreMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left font-semibold text-ink hover:bg-acid-soft transition-colors"
+                  >
+                    <Icon name="cloud" size={14} className="text-pine" />
+                    <span>{saving ? "Saving to Cloud…" : "Save to Cloud"}</span>
+                  </button>
+                  <button
+                    onClick={() => { setCreditsModalOpen(true); setMoreMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left font-semibold text-ink hover:bg-acid-soft transition-colors"
+                  >
+                    <span>🔥</span>
+                    <span>{creditsState.streakDays}d Streak · {creditsState.credits} Credits</span>
+                  </button>
+                  <button
+                    onClick={() => { setPricingModalOpen(true); setMoreMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left font-semibold text-ink hover:bg-acid-soft transition-colors"
+                  >
+                    <span>{CURRENCY_MAP[userCurrency]?.flag || "🌐"}</span>
+                    <span>{CURRENCY_MAP[userCurrency]?.symbol || "$"} Pricing Plans</span>
+                  </button>
+                  <div className="my-1 border-t border-ink/10" />
+                  <button
+                    onClick={() => { setResetModalOpen(true); setMoreMenuOpen(false); }}
+                    className="flex w-full items-center gap-2 px-2.5 py-2 text-left font-semibold text-coral hover:bg-coral/10 transition-colors"
+                  >
+                    <Icon name="trash" size={14} />
+                    <span>Reset All Resume Data</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -629,13 +696,13 @@ export default function Builder() {
         {/* ------------ editor column ------------ */}
         <div className="space-y-4">
           {/* Target Job & Real-Time Automated Keyword Insertion Assistant */}
-          <div id="tour-jd-assistant" className="border-2 border-ink bg-card shadow-[4px_4px_0_0_var(--color-ink)]">
-            <div className="flex items-center justify-between p-3 border-b border-ink/15 bg-paper/60">
+          <div id="tour-jd-assistant" className="border-2 border-ink bg-card shadow-[3px_3px_0_0_var(--color-ink)]">
+            <div className="flex items-center justify-between px-3 py-2 bg-paper/60 border-b border-ink/10">
               <div className="flex items-center gap-2">
-                <Icon name="check" size={15} className="text-pine" />
-                <span className="font-display text-xs font-black text-ink uppercase tracking-wider">Target Job Keyword Assistant</span>
+                <span className="text-sm">🎯</span>
+                <span className="font-display text-xs font-bold text-ink uppercase tracking-wide">Target Job Matcher</span>
                 {liveKeywords && (
-                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.2 border ${
+                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 border ${
                     liveKeywords.filter(k => k.matched).length / (liveKeywords.length || 1) >= 0.7
                       ? "border-pine bg-acid-soft text-pine-deep"
                       : "border-coral bg-coral/10 text-coral"
@@ -647,9 +714,9 @@ export default function Builder() {
               <button
                 type="button"
                 onClick={() => setJdOpen(!jdOpen)}
-                className="font-mono text-[10.5px] font-bold text-pine hover:underline flex items-center gap-1"
+                className="font-mono text-[11px] font-bold text-pine hover:underline flex items-center gap-1"
               >
-                {jdOpen ? "Hide" : jd ? "Edit Target JD" : "+ Add Job Description"}
+                {jdOpen ? "Hide" : jd ? "Edit Target JD" : "+ Match Job Description"}
                 <Icon name="chev" size={11} className={`transition-transform ${jdOpen ? "rotate-180" : ""}`} />
               </button>
             </div>
@@ -696,7 +763,7 @@ export default function Builder() {
             )}
 
             {/* Live Keyword Insertion Dashboard */}
-            {liveKeywords && (
+            {liveKeywords && jdOpen && (
               <div className="p-3 space-y-2.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-mono text-[10.5px] font-bold text-ink-soft">
@@ -770,34 +837,6 @@ export default function Builder() {
             )}
           </div>
 
-          {/* Step-by-Step Mouse Guide Launcher Bar */}
-          <div className="flex items-center justify-between border-2 border-ink bg-paper p-2.5 shadow-[3px_3px_0_0_var(--color-ink)]">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center border border-ink bg-acid font-mono text-sm shadow-sm">
-                🖱️
-              </span>
-              <div>
-                <p className="font-display text-xs font-black text-ink uppercase tracking-wide">
-                  Interactive Mouse Guide
-                </p>
-                <p className="text-[11px] text-ink-soft">
-                  Step-by-step animated mouse pointer walks you through every section.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setTourOpen(true);
-                try { localStorage.setItem("rb_tour_seen", "true"); } catch {}
-              }}
-              className="flex items-center gap-1.5 border-2 border-ink bg-ink px-3 py-1.5 font-mono text-[11px] font-black uppercase text-acid shadow-[2px_2px_0_0_var(--color-acid)] transition-all hover:bg-pine hover:border-pine hover:text-white hover:-translate-y-0.5"
-            >
-              <span>Start Tour</span>
-              <span>→</span>
-            </button>
-          </div>
-
           <div id="tour-tabs-bar" className="flex flex-wrap gap-1.5 border-2 border-ink bg-ink p-1.5">
             {sections.map((s) => (
               <button key={s.id} onClick={() => setTab(s.id)} className={`px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider transition-colors ${tab === s.id ? "bg-acid text-ink" : "text-paper/70 hover:text-paper"}`}>{s.label}</button>
@@ -807,9 +846,11 @@ export default function Builder() {
           {tab === "contact" && (
             <div id="tour-contact-section">
             <SectionShell title={t("builder.contactTitle", "Contact details")} hint={t("builder.contactHint", "Parsers read these first")} open onToggle={() => {}}>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div id="tour-contact-name" className="grid gap-3 sm:grid-cols-2">
                 <Field id="contact-fullName" label={t("builder.fullName", "Full name")} value={resume.contact.fullName} onChange={(v) => setContact("fullName", v)} placeholder="Alex Morgan" />
                 <Field id="contact-title" label={t("builder.jobTitle", "Job title")} value={resume.contact.title} onChange={(v) => setContact("title", v)} placeholder="Registered Nurse" />
+              </div>
+              <div id="tour-contact-reachability" className="grid gap-3 sm:grid-cols-2 mt-3">
                 <Field id="contact-email" label={t("builder.email", "Email")} type="email" value={resume.contact.email} onChange={(v) => setContact("email", v)} placeholder="alex@email.com" />
                 <Field id="contact-phone" label={t("builder.phone", "Phone")} value={resume.contact.phone} onChange={(v) => setContact("phone", v)} placeholder="+1 (555) 014-2288" />
                 <Field id="contact-location" label={t("builder.location", "Location")} value={resume.contact.location} onChange={(v) => setContact("location", v)} placeholder="City, Country" />
@@ -940,6 +981,7 @@ export default function Builder() {
           )}
 
           {tab === "summary" && (
+            <div id="tour-summary-section">
             <SectionShell title={t("builder.summaryTitle", "Professional summary")} hint={t("builder.summaryHint", "25–90 words · no 'I' or 'my'")} open onToggle={() => {}}>
               <textarea id="summary-textarea" value={resume.summary} onChange={(e) => set((r) => ({ ...r, summary: e.target.value }))} rows={6} className={inputCls} placeholder="Licensed professional with 6 years of…" />
               <p className="mt-2 font-mono text-[10.5px] text-ink-soft">{resume.summary.trim().split(/\s+/).filter(Boolean).length} words — aim for 25–90.</p>
@@ -966,9 +1008,11 @@ export default function Builder() {
                 </button>
               </div>
             </SectionShell>
+            </div>
           )}
 
           {tab === "experience" && (
+            <div id="tour-experience-section" className="space-y-4">
             <div id="xp-tab-container" className="space-y-4">
               {resume.experience.map((e, idx) => (
                 <div key={e.id} id={`xp-item-${e.id}`}>
@@ -1088,9 +1132,11 @@ export default function Builder() {
                 </button>
               </div>
             </div>
+            </div>
           )}
 
           {tab === "education" && (
+            <div id="tour-education-section" className="space-y-4">
             <div id="edu-tab-container" className="space-y-4">
               {resume.education.map((e, idx) => (
                 <div key={e.id} id={`edu-item-${e.id}`}>
@@ -1131,9 +1177,11 @@ export default function Builder() {
                 </button>
               </div>
             </div>
+            </div>
           )}
 
           {tab === "skills" && (
+            <div id="tour-skills-section">
             <SectionShell title={t("builder.skillsTitle", "Skills")} hint={t("builder.skillsHint", "The #1 ATS keyword source — aim for 6+")} open onToggle={() => {}}>
               <div className="flex flex-wrap gap-2">
                 {resume.skills.map((s, i) => (
@@ -1177,6 +1225,7 @@ export default function Builder() {
                 </button>
               </div>
             </SectionShell>
+            </div>
           )}
 
           {tab === "extras" && (
@@ -1351,24 +1400,61 @@ export default function Builder() {
         </div>
 
         {/* ------------ preview column ------------ */}
-        <div className="space-y-4">
-          {/* Page Length & Add/Delete Page 2 Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-2 border-ink bg-card px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <span className="kicker text-ink-soft">Pages</span>
-              <div className="inline-flex border-2 border-ink bg-white p-0.5">
+        <div className="space-y-3">
+          {/* Unified Clean Preview Toolbar: Templates, Ink, Pages & Zoom */}
+          <div id="tour-templates-bar" className="flex flex-wrap items-center justify-between gap-2.5 border-2 border-ink bg-card px-3.5 py-2 shadow-xs">
+            {/* Template selector & Inks */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[10px] uppercase font-bold text-ink-soft">Template:</span>
+                <select
+                  value={resume.template}
+                  onChange={(e) => {
+                    set((r) => ({ ...r, template: e.target.value as any }));
+                    track("template_select", { template: e.target.value });
+                  }}
+                  className="border border-ink/30 bg-white px-2 py-1 text-xs font-bold text-ink hover:border-ink cursor-pointer"
+                >
+                  {TEMPLATES.map((tp) => (
+                    <option key={tp.id} value={tp.id}>
+                      {tp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ink accents */}
+              <div className="flex items-center gap-1">
+                {ACCENTS.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => set((r) => ({ ...r, accent: a }))}
+                    aria-label={`Accent ${a}`}
+                    className={`h-5 w-5 border-2 transition-transform hover:scale-110 ${
+                      resume.accent === a ? "border-ink scale-110 shadow-xs" : "border-transparent"
+                    }`}
+                    style={{ background: a }}
+                  />
+                ))}
+              </div>
+
+              <span className="hidden h-4 w-px bg-ink/20 sm:block" />
+
+              {/* 1 Page / 2 Pages format toggle */}
+              <div className="inline-flex border border-ink/30 bg-white p-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     set((r) => ({ ...r, pageCount: 1 }));
                     toast("Strict 1-Page Resume format enforced (ATS standard).", "ok");
                   }}
-                  className={`px-3 py-1 text-xs font-bold transition-colors ${
+                  className={`px-2.5 py-0.5 text-xs font-bold transition-colors ${
                     resume.pageCount !== 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"
                   }`}
                   title="Enforce 1-Page Resume format (ATS Standard)"
                 >
-                  1 Page (ATS Standard)
+                  1 Page
                 </button>
                 <button
                   type="button"
@@ -1376,125 +1462,71 @@ export default function Builder() {
                     set((r) => ({ ...r, pageCount: 2 }));
                     toast("2-Page Extended Resume format enabled.", "ok");
                   }}
-                  className={`px-3 py-1 text-xs font-bold transition-colors ${
+                  className={`px-2.5 py-0.5 text-xs font-bold transition-colors ${
                     resume.pageCount === 2 ? "bg-ink text-acid" : "text-ink-soft hover:text-ink"
                   }`}
-                  title="2-Page layout for senior CVs"
+                  title="2-Page layout for extended career history"
                 >
-                  2 Pages (Extended)
+                  2 Pages
                 </button>
               </div>
             </div>
 
+            {/* Print Breakers & Zoom Controls */}
             <div className="flex items-center gap-2">
-              {effectivePages === 2 ? (
-                <>
-                  <div className="flex items-center gap-1 font-mono text-[10px] text-ink-soft mr-2">
-                    <span>View:</span>
-                    <button type="button" onClick={() => setPreviewPage("all")} className={`px-2 py-0.5 border ${previewPage === "all" ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>Both</button>
-                    <button type="button" onClick={() => setPreviewPage(1)} className={`px-2 py-0.5 border ${previewPage === 1 ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>P1</button>
-                    <button type="button" onClick={() => setPreviewPage(2)} className={`px-2 py-0.5 border ${previewPage === 2 ? "bg-ink text-paper border-ink" : "bg-white border-ink/20"}`}>P2</button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      set((r) => ({ ...r, pageCount: 1 }));
-                      toast("Switched to 1-page format.", "ok");
-                    }}
-                    className="flex items-center gap-1.5 border border-coral/50 bg-coral/10 px-2.5 py-1 text-xs font-bold text-coral hover:bg-coral/20"
-                    title="Force 1-page format"
-                  >
-                    <Icon name="trash" size={13} /> Delete Page 2
-                  </button>
-                </>
-              ) : (
+              <button
+                type="button"
+                onClick={() => setShowPrintBreaks((v) => !v)}
+                className={`flex items-center gap-1 border px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${
+                  showPrintBreaks
+                    ? "border-rose-500 bg-rose-50 text-rose-700 shadow-xs"
+                    : "border-ink/25 bg-white text-ink-soft hover:text-ink"
+                }`}
+                title="Show print fold line guide"
+              >
+                <Icon name="scissors" size={12} />
+                <span>{showPrintBreaks ? "Breaks: On" : "Breaks"}</span>
+              </button>
+
+              <div className="flex items-center gap-1 border border-ink/30 bg-white px-2 py-0.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    set((r) => ({ ...r, pageCount: 2 }));
-                    toast("Added Page 2 to resume. Extended experience & projects enabled.", "ok");
-                  }}
-                  className="flex items-center gap-1.5 border border-pine/60 bg-acid px-3 py-1 text-xs font-bold text-ink hover:bg-acid-soft"
+                  onClick={() => setManualZoom((z) => Math.max(0.25, (z ?? scale) - 0.1))}
+                  className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink"
+                  title="Zoom out"
                 >
-                  <Icon name="plus" size={14} /> + Add Page 2
+                  -
                 </button>
-              )}
-            </div>
-          </div>
-
-          <div id="tour-templates-bar" className="flex flex-wrap items-center gap-3 border-2 border-ink bg-card px-4 py-3">
-            <span className="kicker text-ink-soft">{t("builder.template", "Template")}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {TEMPLATES.map((tp) => (
-                <button key={tp.id} title={tp.note} onClick={() => { set((r) => ({ ...r, template: tp.id })); track("template_select", { template: tp.id }); }}
-                  className={`border px-3 py-1.5 text-xs font-bold transition-all ${resume.template === tp.id ? "border-ink bg-ink text-acid" : "border-ink/25 text-ink-soft hover:border-ink hover:text-ink"}`}>
-                  {tp.name}
+                <span className="w-8 text-center font-mono text-[10.5px] font-bold text-ink-soft">
+                  {Math.round(effectiveScale * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setManualZoom((z) => Math.min(1.5, (z ?? scale) + 0.1))}
+                  className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink"
+                  title="Zoom in"
+                >
+                  +
                 </button>
-              ))}
-            </div>
-            <span className="hidden h-5 w-px bg-ink/20 sm:block" />
-            <span className="kicker text-ink-soft">{t("builder.ink", "Ink")}</span>
-            <div className="flex gap-1.5">
-              {ACCENTS.map((a) => (
-                <button key={a} onClick={() => set((r) => ({ ...r, accent: a }))} aria-label={`Accent ${a}`} className={`h-6 w-6 border-2 transition-transform hover:scale-110 ${resume.accent === a ? "border-ink" : "border-transparent"}`} style={{ background: a }} />
-              ))}
-            </div>
-            {resume.template === "ledger" && (
-              <span className="ml-auto flex items-center gap-1.5 border border-coral bg-card px-2 py-1 font-mono text-[10px] font-bold uppercase text-coral"><Icon name="shield" size={12} /> sidebar = ATS risk</span>
-            )}
-          </div>
-
-          <div ref={previewWrap} className="border-2 border-ink bg-line/40 p-4 sm:p-6">
-            {/* Interactive Preview Notification Bar */}
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border border-pine/30 bg-emerald-50/70 px-3 py-2 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600"></span>
-                </span>
-                <span className="font-mono text-[11px] font-bold text-pine-deep">
-                  Interactive CV Preview: Click on any text, role, skill, or detail to auto-switch &amp; focus that editor field
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setManualZoom(null)}
+                  className="ml-1 border-l border-ink/20 pl-1 font-mono text-[10px] uppercase text-ink-soft hover:text-ink"
+                >
+                  Fit
+                </button>
               </div>
-              <span className="border border-pine/25 bg-white/90 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-pine-deep shadow-xs">
-                Deep Focus Active
+            </div>
+          </div>
+
+          <div ref={previewWrap} className="border-2 border-ink bg-line/40 p-3 sm:p-5">
+            {/* Subtle Interactive hint */}
+            <div className="mb-2.5 flex items-center justify-between px-1 text-[11px] text-ink-soft font-mono">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                Live Interactive Preview (Click any field to edit)
               </span>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3 px-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink font-bold">
-                  Full Continuous Preview ({Math.round(effectiveScale * 100)}%)
-                </span>
-                <span className="border border-pine/40 bg-acid-soft px-2 py-0.5 font-mono text-[9px] font-bold text-pine-deep uppercase">
-                  Zero Cutoffs · Complete CV
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Print Break Line Guide toggle */}
-                <button
-                  type="button"
-                  onClick={() => setShowPrintBreaks((v) => !v)}
-                  className={`flex items-center gap-1 border px-2 py-1 font-mono text-[10px] font-bold uppercase transition-colors ${
-                    showPrintBreaks
-                      ? "border-rose-500 bg-rose-50 text-rose-700 shadow-xs"
-                      : "border-ink/25 bg-card text-ink-soft hover:text-ink"
-                  }`}
-                  title="Show print fold line guide"
-                >
-                  <Icon name="scissors" size={12} />
-                  <span>{showPrintBreaks ? "Hide Print Breaks" : "Show Print Breaks"}</span>
-                </button>
-
-                {/* Zoom Controls */}
-                <div className="flex items-center gap-1 border border-ink/30 bg-card px-2 py-1">
-                  <button type="button" onClick={() => setManualZoom((z) => Math.max(0.25, (z ?? scale) - 0.1))} className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink" title="Zoom out">-</button>
-                  <span className="w-10 text-center font-mono text-[10.5px] font-bold text-ink-soft">{Math.round(effectiveScale * 100)}%</span>
-                  <button type="button" onClick={() => setManualZoom((z) => Math.min(1.5, (z ?? scale) + 0.1))} className="px-1.5 py-0.5 text-xs font-bold hover:bg-line text-ink" title="Zoom in">+</button>
-                  <button type="button" onClick={() => setManualZoom(null)} className="ml-1 border-l border-ink/20 pl-1.5 font-mono text-[10px] uppercase text-ink-soft hover:text-ink">Fit</button>
-                  <button type="button" onClick={() => setManualZoom(1)} className="font-mono text-[10px] uppercase text-ink-soft hover:text-ink">100%</button>
-                </div>
-              </div>
+              <span>Zero Cutoffs</span>
             </div>
 
             {/* Continuous Full Preview Container without A4 height boundaries */}
@@ -1700,8 +1732,19 @@ export default function Builder() {
       {/* Interactive Mouse Pointer Guide Tour */}
       <InteractiveMouseTour
         isOpen={tourOpen}
-        onClose={() => setTourOpen(false)}
+        onClose={() => {
+          setTourOpen(false);
+          try {
+            localStorage.setItem("rb_interactive_tour_seen", "true");
+          } catch {}
+        }}
         onSelectTab={(newTab) => setTab(newTab)}
+        resume={resume}
+        setResume={setResume}
+        setContact={setContact}
+        jd={jd}
+        onJdChange={(newJd) => setJd(newJd)}
+        onExport={(fmt) => onExport(fmt as any)}
       />
     </div>
   );

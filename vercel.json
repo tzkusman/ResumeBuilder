@@ -5,11 +5,11 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{prisma/**,node_modules/.prisma/client/**}",
+      "includeFiles": "prisma/**",
       "maxDuration": 30
     },
     "api/**/*.ts": {
-      "includeFiles": "{prisma/**,node_modules/.prisma/client/**}",
+      "includeFiles": "prisma/**",
       "maxDuration": 30
     }
   },

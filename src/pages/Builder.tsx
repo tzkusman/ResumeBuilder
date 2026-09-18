@@ -45,41 +45,6 @@ const TEMPLATES: { id: TemplateId; name: string; note: string }[] = [
   { id: "stellar", name: "Stellar", note: "Dual-tone · telemetry" },
 ];
 
-const METRIC_TEMPLATES = [
-  {
-    category: "Cost & Efficiency",
-    template: "Reduced operational costs by [X]% ($[Y]k/year) by automating and optimizing [process/workflow]."
-  },
-  {
-    category: "Revenue & Growth",
-    template: "Increased quarterly revenue by [X]% ($[Y]M) by spearheading the launch and adoption of [initiative]."
-  },
-  {
-    category: "Speed & Performance",
-    template: "Optimized core system performance, cutting p95 response latency by [X]% from [A]ms to [B]ms."
-  },
-  {
-    category: "Scale & Reliability",
-    template: "Scaled cloud infrastructure to support [X]M+ daily active users while maintaining 99.99% uptime."
-  },
-  {
-    category: "Process Automation",
-    template: "Automated manual data and reporting pipelines, saving [X] team hours per week and eliminating errors."
-  },
-  {
-    category: "Leadership & Delivery",
-    template: "Led cross-functional squad of [X] engineers and designers to deliver [product] [Y] weeks ahead of schedule."
-  },
-  {
-    category: "Quality & Testing",
-    template: "Decreased production incidents by [X]% through implementing automated CI/CD and end-to-end test suites."
-  },
-  {
-    category: "Conversion & Retention",
-    template: "Improved user conversion rate by [X]% and customer retention by [Y]% via data-driven A/B experiments."
-  }
-];
-
 const inputCls = "w-full border border-ink/25 bg-white px-3 py-2 text-sm transition-colors placeholder:text-ink-soft/50 focus:border-pine focus:outline-none";
 const labelCls = "mb-1 block font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-soft";
 
@@ -458,7 +423,6 @@ export default function Builder() {
 
   const [manualZoom, setManualZoom] = useState<number | null>(null);
   const effectiveScale = manualZoom ?? scale;
-  const [openMetricMenuId, setOpenMetricMenuId] = useState<string | null>(null);
   const [docNaturalHeight, setDocNaturalHeight] = useState<number>(1123);
   const [showPrintBreaks, setShowPrintBreaks] = useState(false);
   const [tutorialMode, setTutorialMode] = useState(true);
@@ -484,29 +448,6 @@ export default function Builder() {
       mo.disconnect();
     };
   }, [resume, effectiveScale, previewPage]);
-
-  const insertMetricTemplate = (id: string, currentBullets: string[], specificIndex?: number) => {
-    const existing = currentBullets.map((b) => b.trim());
-    let chosen = METRIC_TEMPLATES[0];
-
-    if (typeof specificIndex === "number" && METRIC_TEMPLATES[specificIndex]) {
-      chosen = METRIC_TEMPLATES[specificIndex];
-    } else {
-      // Find the first template that hasn't already been inserted
-      const unused = METRIC_TEMPLATES.find((m) => !existing.includes(m.template));
-      if (unused) {
-        chosen = unused;
-      } else {
-        // If all are used, cycle to next
-        chosen = METRIC_TEMPLATES[existing.length % METRIC_TEMPLATES.length];
-      }
-    }
-
-    const cleaned = currentBullets.filter((b) => b.trim().length > 0);
-    setXp(id, { bullets: [...cleaned, chosen.template] });
-    toast(`Added ${chosen.category} metric formula: "${chosen.template.slice(0, 36)}…"`, "ok");
-    setOpenMetricMenuId(null);
-  };
 
   const sections = [
     { id: "contact", label: t("builder.tab.contact", "Contact") },
@@ -1050,45 +991,6 @@ export default function Builder() {
                               +{verb}
                             </button>
                           ))}
-                          <div className="relative ml-auto inline-flex items-center">
-                            <button
-                              type="button"
-                              onClick={() => insertMetricTemplate(e.id, e.bullets)}
-                              className="border border-pine/40 bg-acid px-2 py-0.5 font-mono text-[10px] font-bold text-ink hover:border-ink hover:bg-acid-soft transition-colors"
-                              title="Add quantifiable achievement formula (cycles through 8 varied metric types)"
-                            >
-                              + Metric Template
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setOpenMetricMenuId(openMetricMenuId === e.id ? null : e.id)}
-                              className="border-y border-r border-pine/40 bg-acid px-1.5 py-0.5 font-mono text-[10px] font-bold text-ink hover:bg-paper transition-colors"
-                              title="Choose specific metric formula"
-                              aria-label="Choose metric formula"
-                            >
-                              ▾
-                            </button>
-                            {openMetricMenuId === e.id && (
-                              <div className="absolute right-0 top-full z-30 mt-1 w-72 border-2 border-ink bg-card p-1.5 shadow-md">
-                                <div className="mb-1 border-b border-ink/10 pb-1 font-mono text-[9.5px] font-bold uppercase text-ink-soft">
-                                  Select Quantifiable Metric:
-                                </div>
-                                <div className="max-h-56 space-y-1 overflow-y-auto">
-                                  {METRIC_TEMPLATES.map((m, mIdx) => (
-                                    <button
-                                      key={mIdx}
-                                      type="button"
-                                      onClick={() => insertMetricTemplate(e.id, e.bullets, mIdx)}
-                                      className="w-full text-left rounded p-1.5 font-mono text-[10px] hover:bg-acid-soft transition-colors"
-                                    >
-                                      <span className="font-bold text-pine block">{m.category}</span>
-                                      <span className="text-ink-soft line-clamp-2">{m.template}</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
                         </div>
                         <textarea
                           id={`xp-bullets-${e.id}`}

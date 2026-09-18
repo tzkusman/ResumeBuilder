@@ -169,23 +169,58 @@ body {
 [dir="rtl"] { direction: rtl; text-align: right; }
 [dir="rtl"] .resume-sheet { direction: rtl; text-align: right; }
 
-/* Interactive resume canvas: subtle, non-intrusive hover cue without layout shifts */
+/* Interactive resume canvas: highlight outline and tint on hover across ALL 20 templates */
 .resume-sheet-interactive [data-section] {
   cursor: pointer;
+  position: relative;
 }
 .resume-sheet-interactive [data-section]:hover {
-  outline: 1px dashed rgba(23, 89, 74, 0.35);
+  outline: 1px dashed rgba(23, 89, 74, 0.45);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.resume-sheet-interactive [data-item-id] {
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.12s ease, outline 0.12s ease;
+}
+.resume-sheet-interactive [data-item-id]:hover {
+  outline: 1px dashed rgba(23, 89, 74, 0.55);
   outline-offset: 2px;
   border-radius: 2px;
 }
-.resume-sheet-interactive [data-subfield],
-.resume-sheet-interactive [data-item-id] {
+.resume-sheet-interactive [data-subfield] {
   cursor: pointer;
-  transition: background-color 0.15s ease, outline 0.15s ease;
+  position: relative;
+  transition: background-color 0.12s ease, outline 0.12s ease;
 }
 .resume-sheet-interactive [data-subfield]:hover {
-  outline: 1px dashed rgba(23, 89, 74, 0.55);
-  background-color: rgba(23, 89, 74, 0.04);
+  outline: 1px dashed rgba(23, 89, 74, 0.75);
+  background-color: rgba(23, 89, 74, 0.05);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Bullet items and list items hover highlight in all templates */
+.resume-sheet-interactive li {
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.12s ease, outline 0.12s ease;
+}
+.resume-sheet-interactive li:hover {
+  outline: 1px dashed rgba(23, 89, 74, 0.75);
+  background-color: rgba(23, 89, 74, 0.05);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Direct text elements hover highlight in all templates */
+.resume-sheet-interactive h1:hover,
+.resume-sheet-interactive h2:hover,
+.resume-sheet-interactive h3:hover,
+.resume-sheet-interactive h4:hover {
+  outline: 1px dashed rgba(23, 89, 74, 0.65);
+  background-color: rgba(23, 89, 74, 0.03);
   outline-offset: 1px;
   border-radius: 2px;
 }

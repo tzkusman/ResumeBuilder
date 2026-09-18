@@ -83,7 +83,7 @@ export default function NordicTemplate({ data, pageNumber, onSelectSection }: Te
                   </p>
                   <ul className="mt-1 space-y-1" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                     {e.bullets.filter(Boolean).map((b, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[12px] leading-relaxed text-neutral-700">
+                      <li key={i} className="flex items-start gap-2.5 text-[12px] leading-relaxed text-neutral-700" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                         <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full" style={{ background: accent }} />
                         <span>{b}</span>
                       </li>

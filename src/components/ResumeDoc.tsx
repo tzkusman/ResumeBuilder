@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect, useEffect } from "react";
 import type { ResumeData, ProjectEntry, VolunteerEntry } from "../lib/types";
 import NordicTemplate from "./templates/NordicTemplate";
 import CascadeTemplate from "./templates/CascadeTemplate";
@@ -538,6 +539,250 @@ function RenderVolunteer({ volunteer, accent, variant }: RenderVolunteerProps) {
  * 19. onyx: Dark top accent bar, monospace technical tags, and sharp architectural grids.
  * 20. stellar: Dual-tone layout with left telemetry sidebar and narrative experience column.
  */
+/**
+ * Universal DOM Annotator:
+ * Inspects the rendered DOM of any of the 20 templates and assigns
+ * data-section, data-subfield, data-item-id, data-bullet-text, and data-bullet-index
+ * so all templates get the exact same hover cues, dashed borders, and click focus as Merit.
+ */
+function annotateResumeDocument(container: HTMLElement, data: ResumeData) {
+  if (!container) return;
+
+  const c = data.contact || ({} as any);
+  const xp = data.experience || [];
+  const edu = data.education || [];
+  const projects = data.projects || [];
+  const skills = data.skills || [];
+
+  // 1. Tag Header / Contact Info
+  const h1 = container.querySelector("h1");
+  if (h1) {
+    h1.setAttribute("data-section", "contact");
+    h1.setAttribute("data-subfield", "fullName");
+    const headerParent = h1.closest("header, aside, .resume-sheet > div:first-child") || h1.parentElement;
+    if (headerParent && !headerParent.getAttribute("data-section")) {
+      headerParent.setAttribute("data-section", "contact");
+    }
+  }
+
+  // Tag candidate title, email, phone, location, website, linkedin
+  const textElements = container.querySelectorAll("h1, h2, h3, h4, p, span, a, li");
+  textElements.forEach((node) => {
+    const el = node as HTMLElement;
+    const raw = (el.innerText || el.textContent || "").trim();
+    if (!raw) return;
+    const lower = raw.toLowerCase();
+
+    if (c.title && !el.getAttribute("data-subfield") && (raw === c.title || lower === c.title.toLowerCase())) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "title");
+    } else if (c.email && !el.getAttribute("data-subfield") && (raw === c.email || lower === c.email.toLowerCase() || (lower.includes("@") && lower.includes(".")))) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "email");
+    } else if (c.phone && !el.getAttribute("data-subfield") && (raw === c.phone || (c.phone.length > 5 && raw.includes(c.phone)))) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "phone");
+    } else if (c.linkedin && !el.getAttribute("data-subfield") && (raw === c.linkedin || lower.includes("linkedin.com") || (c.linkedin.length > 5 && lower.includes(c.linkedin.toLowerCase())))) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "linkedin");
+    } else if (c.website && !el.getAttribute("data-subfield") && (raw === c.website || lower.includes("http") || lower.includes(".com") || (c.website.length > 5 && lower.includes(c.website.toLowerCase())))) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "website");
+    } else if (c.location && !el.getAttribute("data-subfield") && (raw === c.location || (c.location.length > 3 && raw.includes(c.location) && el.closest("header, aside, [data-section='contact']")))) {
+      el.setAttribute("data-section", "contact");
+      el.setAttribute("data-subfield", "location");
+    }
+  });
+
+  // 2. Tag Sections by Headings
+  const blocks = container.querySelectorAll("section, aside, header, div");
+  blocks.forEach((block) => {
+    const el = block as HTMLElement;
+    const heading = el.querySelector("h2, h3, h4, [class*='font-bold'], [class*='tracking-']") as HTMLElement | null;
+    if (!heading) return;
+    const hText = (heading.innerText || heading.textContent || "").toLowerCase().trim();
+
+    if (hText.includes("summary") || hText.includes("profile") || hText.includes("statement") || hText.includes("about")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "summary");
+      el.querySelectorAll("p").forEach((p) => {
+        p.setAttribute("data-section", "summary");
+        p.setAttribute("data-subfield", "summary");
+      });
+    } else if (hText.includes("experience") || hText.includes("work") || hText.includes("employment") || hText.includes("career") || hText.includes("history")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "experience");
+    } else if (hText.includes("education") || hText.includes("academic") || hText.includes("studies")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "education");
+    } else if (hText.includes("skill") || hText.includes("technolog") || hText.includes("competenc") || hText.includes("proficienc")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "skills");
+      el.querySelectorAll("span, li, p, div").forEach((skNode) => {
+        const skTxt = (skNode.textContent || "").trim();
+        if (skTxt && skills.some((s) => s && (skTxt === s || skTxt.includes(s)))) {
+          skNode.setAttribute("data-section", "skills");
+          skNode.setAttribute("data-subfield", "skills");
+        }
+      });
+    } else if (hText.includes("project") || hText.includes("deliverable") || hText.includes("initiative")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "projects");
+    } else if (hText.includes("certif")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "extras");
+      el.querySelectorAll("li, p, span").forEach((cNode) => {
+        cNode.setAttribute("data-section", "extras");
+        cNode.setAttribute("data-subfield", "certifications");
+      });
+    } else if (hText.includes("languag")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "extras");
+      el.querySelectorAll("li, p, span").forEach((lNode) => {
+        lNode.setAttribute("data-section", "extras");
+        lNode.setAttribute("data-subfield", "languages");
+      });
+    } else if (hText.includes("volunteer") || hText.includes("community")) {
+      if (!el.getAttribute("data-section")) el.setAttribute("data-section", "extras");
+      el.querySelectorAll("li, p, span").forEach((vNode) => {
+        vNode.setAttribute("data-section", "extras");
+        vNode.setAttribute("data-subfield", "volunteer");
+      });
+    }
+  });
+
+  // 3. Experience Items & Individual Bullets
+  const xpContainers = container.querySelectorAll("[data-section='experience']");
+  xpContainers.forEach((xpSec) => {
+    xp.forEach((e) => {
+      // Look for role or company inside
+      const candidates = xpSec.querySelectorAll("div, article, p, h3, h4");
+      for (let i = 0; i < candidates.length; i++) {
+        const cand = candidates[i] as HTMLElement;
+        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
+        const roleMatch = e.role && (txt.includes(e.role.toLowerCase()) || e.role.toLowerCase().includes(txt));
+        const compMatch = e.company && (txt.includes(e.company.toLowerCase()) || e.company.toLowerCase().includes(txt));
+
+        if (roleMatch || compMatch) {
+          const entry = cand.closest("div[class*='border'], div.group, div.space-y, div.p-, div:not([data-section='experience'])") as HTMLElement || cand;
+          if (entry && entry !== xpSec) {
+            entry.setAttribute("data-section", "experience");
+            entry.setAttribute("data-item-id", e.id);
+          }
+          if (roleMatch) {
+            cand.setAttribute("data-section", "experience");
+            cand.setAttribute("data-subfield", "role");
+            cand.setAttribute("data-item-id", e.id);
+          }
+          if (compMatch) {
+            cand.setAttribute("data-section", "experience");
+            cand.setAttribute("data-subfield", "company");
+            cand.setAttribute("data-item-id", e.id);
+          }
+        }
+      }
+
+      // Explicitly tag every bullet in this job's entry
+      const entryEl = xpSec.querySelector(`[data-item-id='${e.id}']`);
+      if (entryEl) {
+        const lis = entryEl.querySelectorAll("li");
+        lis.forEach((li, idx) => {
+          li.setAttribute("data-section", "experience");
+          li.setAttribute("data-subfield", "bullets");
+          li.setAttribute("data-item-id", e.id);
+          li.setAttribute("data-bullet-index", String(idx));
+          const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+          if (bulletClean) {
+            li.setAttribute("data-bullet-text", bulletClean);
+          }
+        });
+      }
+    });
+  });
+
+  // 4. Education Items
+  const eduContainers = container.querySelectorAll("[data-section='education']");
+  eduContainers.forEach((eduSec) => {
+    edu.forEach((ed) => {
+      const candidates = eduSec.querySelectorAll("div, p, span, h4");
+      for (let i = 0; i < candidates.length; i++) {
+        const cand = candidates[i] as HTMLElement;
+        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
+        const degMatch = ed.degree && txt.includes(ed.degree.toLowerCase());
+        const schMatch = ed.school && txt.includes(ed.school.toLowerCase());
+        if (degMatch || schMatch) {
+          const entry = cand.closest("div:not([data-section='education'])") as HTMLElement || cand;
+          if (entry && entry !== eduSec) {
+            entry.setAttribute("data-section", "education");
+            entry.setAttribute("data-item-id", ed.id);
+          }
+          if (degMatch) {
+            cand.setAttribute("data-section", "education");
+            cand.setAttribute("data-subfield", "degree");
+            cand.setAttribute("data-item-id", ed.id);
+          }
+          if (schMatch) {
+            cand.setAttribute("data-section", "education");
+            cand.setAttribute("data-subfield", "school");
+            cand.setAttribute("data-item-id", ed.id);
+          }
+        }
+      }
+    });
+  });
+
+  // 5. Projects Items & Bullets
+  const projContainers = container.querySelectorAll("[data-section='projects']");
+  projContainers.forEach((projSec) => {
+    projects.forEach((p) => {
+      const candidates = projSec.querySelectorAll("div, p, h3, h4");
+      for (let i = 0; i < candidates.length; i++) {
+        const cand = candidates[i] as HTMLElement;
+        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
+        if (p.title && txt.includes(p.title.toLowerCase())) {
+          const entry = cand.closest("div:not([data-section='projects'])") as HTMLElement || cand;
+          if (entry && entry !== projSec) {
+            entry.setAttribute("data-section", "projects");
+            entry.setAttribute("data-item-id", p.id);
+          }
+          cand.setAttribute("data-section", "projects");
+          cand.setAttribute("data-subfield", "title");
+          cand.setAttribute("data-item-id", p.id);
+        }
+      }
+      const entryEl = projSec.querySelector(`[data-item-id='${p.id}']`);
+      if (entryEl) {
+        const lis = entryEl.querySelectorAll("li");
+        lis.forEach((li, idx) => {
+          li.setAttribute("data-section", "projects");
+          li.setAttribute("data-subfield", "bullets");
+          li.setAttribute("data-item-id", p.id);
+          li.setAttribute("data-bullet-index", String(idx));
+          const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+          if (bulletClean) {
+            li.setAttribute("data-bullet-text", bulletClean);
+          }
+        });
+      }
+    });
+  });
+
+  // 6. Universal Bullet / LI Safeguard
+  const allLis = container.querySelectorAll("li");
+  allLis.forEach((li) => {
+    if (!li.getAttribute("data-subfield")) {
+      li.setAttribute("data-subfield", "bullets");
+      const parentSec = li.closest("[data-section]") as HTMLElement | null;
+      if (parentSec) {
+        li.setAttribute("data-section", parentSec.getAttribute("data-section") || "experience");
+      } else {
+        li.setAttribute("data-section", "experience");
+      }
+      const parentItem = li.closest("[data-item-id]") as HTMLElement | null;
+      if (parentItem) {
+        li.setAttribute("data-item-id", parentItem.getAttribute("data-item-id") || "");
+      }
+      const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+      if (bulletClean) {
+        li.setAttribute("data-bullet-text", bulletClean);
+      }
+    }
+  });
+}
+
 export default function ResumeDoc({
   data,
   pageNumber,
@@ -547,6 +792,20 @@ export default function ResumeDoc({
   pageNumber?: 1 | 2;
   onSelectSection?: OnSelectSectionFn;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      annotateResumeDocument(containerRef.current, data);
+    }
+  });
+
+  useEffect(() => {
+    if (containerRef.current) {
+      annotateResumeDocument(containerRef.current, data);
+    }
+  }, [data, pageNumber]);
+
   const {
     isTwoPage,
     xpPage1,
@@ -2154,6 +2413,7 @@ export default function ResumeDoc({
 
   return (
     <div
+      ref={containerRef}
       className={`relative select-text resume-sheet-interactive ${onSelectSection ? "cursor-pointer group/resume-interactive" : ""}`}
       onClickCapture={handleUniversalClick}
       title={onSelectSection ? "Click any text in the resume to jump to and focus that field in the editor" : undefined}

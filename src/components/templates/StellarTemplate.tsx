@@ -132,7 +132,7 @@ export default function StellarTemplate({ data, pageNumber, onSelectSection }: T
                     <p className="text-[12px] font-medium" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}{e.location && ` · ${e.location}`}</p>
                     <ul className="mt-1.5 space-y-1" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex items-start gap-2 text-[12px] leading-relaxed text-neutral-700">
+                        <li key={i} className="flex items-start gap-2 text-[12px] leading-relaxed text-neutral-700" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                           <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accent }} />
                           <span>{b}</span>
                         </li>

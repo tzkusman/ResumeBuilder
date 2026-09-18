@@ -84,7 +84,7 @@ export default function SummitTemplate({ data, pageNumber, onSelectSection }: Te
                   <p className="text-[12px] font-semibold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}{e.location && ` · ${e.location}`}</p>
                   <ul className="mt-1.5 space-y-1" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                     {e.bullets.filter(Boolean).map((b, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[12px] leading-relaxed text-slate-700">
+                      <li key={i} className="flex items-start gap-2.5 text-[12px] leading-relaxed text-slate-700" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                         <span className="mt-[7px] h-1 w-2 shrink-0 rounded-xs" style={{ background: accent }} />
                         <span>{b}</span>
                       </li>

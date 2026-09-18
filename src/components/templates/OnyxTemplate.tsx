@@ -81,7 +81,7 @@ export default function OnyxTemplate({ data, pageNumber, onSelectSection }: Temp
                   <p className="text-[12px] font-semibold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}{e.location && ` · ${e.location}`}</p>
                   <ul className="mt-1.5 space-y-1" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                     {e.bullets.filter(Boolean).map((b, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[12px] leading-relaxed text-neutral-700">
+                      <li key={i} className="flex items-start gap-2 text-[12px] leading-relaxed text-neutral-700" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                         <span className="mt-[6px] h-1 w-1 shrink-0 bg-neutral-900" />
                         <span>{b}</span>
                       </li>

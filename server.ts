@@ -30,7 +30,12 @@ export function createApp() {
   // Safe body parsing: If Vercel or upstream serverless runtime already parsed the body,
   // skip stream consumption to prevent 30s timeouts.
   app.use((req, res, next) => {
-    if (req.body && typeof req.body === "object") {
+    if (req.body !== undefined && req.body !== null && req.body !== "") {
+      if (typeof req.body === "string") {
+        try {
+          req.body = JSON.parse(req.body);
+        } catch {}
+      }
       return next();
     }
     express.json({ limit: "25mb" })(req, res, next);

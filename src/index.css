@@ -178,12 +178,42 @@ body {
   outline-offset: 2px;
   border-radius: 2px;
 }
+.resume-sheet-interactive [data-subfield],
+.resume-sheet-interactive [data-item-id] {
+  cursor: pointer;
+  transition: background-color 0.15s ease, outline 0.15s ease;
+}
+.resume-sheet-interactive [data-subfield]:hover {
+  outline: 1px dashed rgba(23, 89, 74, 0.55);
+  background-color: rgba(23, 89, 74, 0.04);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* User text selection styling across all 20 templates */
+.resume-sheet,
+.resume-sheet * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.resume-sheet ::selection,
+.resume-sheet *::selection {
+  background-color: #17594A !important;
+  color: #FFFFFF !important;
+}
+
 @media print {
-  .resume-sheet-interactive [data-section] {
+  .resume-sheet-interactive [data-section],
+  .resume-sheet-interactive [data-subfield],
+  .resume-sheet-interactive [data-item-id] {
     cursor: default !important;
     outline: none !important;
+    background-color: transparent !important;
   }
-  .resume-sheet-interactive [data-section]:hover {
+  .resume-sheet-interactive [data-section]:hover,
+  .resume-sheet-interactive [data-subfield]:hover {
     outline: none !important;
+    background-color: transparent !important;
   }
 }

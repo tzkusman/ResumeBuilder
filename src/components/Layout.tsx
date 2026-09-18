@@ -57,22 +57,22 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b-2 border-ink/90 bg-paper/92 backdrop-blur-md">
-        <div ref={navRef} className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 sm:gap-4 px-3 sm:px-6">
+        <div ref={navRef} className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-1.5 sm:gap-3 xl:gap-4 px-3 sm:px-5 xl:px-8">
           <Wordmark />
 
           {/* Desktop Navigation with Dropdowns */}
-          <nav className="hidden items-center gap-0.5 xl:gap-1.5 2xl:gap-2 lg:flex">
+          <nav className="hidden items-center gap-0.5 lg:gap-1 xl:gap-1.5 2xl:gap-2 lg:flex">
             {/* Templates & Examples Dropdown */}
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("templates")}
-                className={`flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap rounded-none ${
+                className={`flex items-center gap-1 px-1.5 py-1.5 lg:px-2 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap rounded-none ${
                   activeDropdown === "templates" || loc.pathname.startsWith("/templates") || loc.pathname.startsWith("/examples")
                     ? "border-b-2 border-pine text-pine-deep font-bold"
                     : "text-ink-soft hover:text-ink"
                 }`}
               >
-                <span>Templates<span className="hidden xl:inline"> & Examples</span></span>
+                <span>Templates<span className="hidden xl:inline"> &amp; Examples</span></span>
                 <Icon name="chev" size={12} className={`transition-transform duration-200 ${activeDropdown === "templates" ? "rotate-180" : ""}`} />
               </button>
 
@@ -155,7 +155,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("countries")}
-                className={`flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1 px-1.5 py-1.5 lg:px-2 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
                   activeDropdown === "countries" || loc.pathname.startsWith("/countries")
                     ? "border-b-2 border-pine text-pine-deep font-bold"
                     : "text-ink-soft hover:text-ink"
@@ -214,7 +214,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("tools")}
-                className={`flex items-center gap-1 px-2 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-1 px-1.5 py-1.5 lg:px-2 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
                   activeDropdown === "tools" ||
                   loc.pathname.startsWith("/ats-checker") ||
                   loc.pathname.startsWith("/job-matcher") ||
@@ -224,7 +224,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     : "text-ink-soft hover:text-ink"
                 }`}
               >
-                <span>Tools<span className="hidden xl:inline"> & ATS</span></span>
+                <span>Tools<span className="hidden xl:inline"> &amp; ATS</span></span>
                 <Icon name="chev" size={12} className={`transition-transform duration-200 ${activeDropdown === "tools" ? "rotate-180" : ""}`} />
               </button>
 
@@ -300,7 +300,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <NavLink
               to="/blog"
               className={({ isActive }) =>
-                `px-2 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
+                `px-1.5 py-1.5 lg:px-2 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
                   isActive ? "border-b-2 border-pine text-pine-deep font-bold" : "text-ink-soft hover:text-ink"
                 }`
               }
@@ -311,7 +311,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <NavLink
               to="/pricing"
               className={({ isActive }) =>
-                `px-2 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
+                `px-1.5 py-1.5 lg:px-2 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold transition-colors whitespace-nowrap ${
                   isActive ? "border-b-2 border-pine text-pine-deep font-bold" : "text-ink-soft hover:text-ink"
                 }`
               }
@@ -321,12 +321,12 @@ export default function Layout({ children }: { children: ReactNode }) {
           </nav>
 
           {/* Right Action Bar */}
-          <div className="flex items-center gap-1.5 sm:gap-2 xl:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 xl:gap-2.5 shrink-0">
             {/* Language Switcher */}
             <div className="relative">
               <button
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
-                className="flex items-center gap-1 border border-ink/25 bg-card px-2 py-1 sm:px-2.5 sm:py-1.5 font-mono text-[10.5px] sm:text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+                className="flex items-center gap-1 border border-ink/25 bg-card px-1.5 py-1 sm:px-2 sm:py-1.5 font-mono text-[10px] sm:text-[11px] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
                 aria-label="Select Language"
               >
                 <Icon name="globe" size={12} />
@@ -364,7 +364,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="hidden sm:flex items-center gap-1 xl:gap-1.5">
                 <Link
                   to="/auth"
-                  className="flex items-center gap-1 border border-ink/25 bg-card px-2 py-1 xl:px-2.5 xl:py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-acid-soft max-w-[85px] md:max-w-[110px] xl:max-w-[150px]"
+                  className="flex items-center gap-1 border border-ink/25 bg-card px-1.5 py-1 lg:px-2 lg:py-1.5 xl:px-2.5 xl:py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-acid-soft max-w-[80px] lg:max-w-[105px] xl:max-w-[150px]"
                   title="View Account, Credits & Subscription"
                 >
                   <Icon name="user" size={12} className="text-pine shrink-0" />
@@ -372,7 +372,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </Link>
                 <button
                   onClick={() => void logout()}
-                  className="hidden md:block border border-ink/20 px-2 py-1 xl:py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-coral hover:text-coral whitespace-nowrap"
+                  className="hidden md:block border border-ink/20 px-1.5 py-1 lg:px-2 lg:py-1.5 xl:py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-coral hover:text-coral whitespace-nowrap"
                   title={t("nav.signout", "Sign out")}
                 >
                   {t("nav.signout", "Sign out")}
@@ -381,7 +381,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             ) : (
               <Link
                 to="/auth"
-                className="hidden border border-ink/25 px-2.5 py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:block whitespace-nowrap"
+                className="hidden border border-ink/25 px-2 py-1 lg:px-2.5 lg:py-1.5 xl:px-3 xl:py-2 text-xs xl:text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink sm:block whitespace-nowrap"
               >
                 {t("nav.signin", "Sign in")}
               </Link>
@@ -389,7 +389,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             <Link
               to="/builder"
-              className="hs-sm hidden border-2 border-ink bg-acid px-3 py-1.5 xl:px-4 xl:py-2 text-xs xl:text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[4px_5px_0_0_var(--color-ink)] active:translate-y-0 sm:block whitespace-nowrap"
+              className="hs-sm hidden border-2 border-ink bg-acid px-2.5 py-1 lg:px-3 lg:py-1.5 xl:px-4 xl:py-2 text-xs xl:text-sm font-bold text-ink transition-all hover:-translate-y-0.5 hover:shadow-[4px_5px_0_0_var(--color-ink)] active:translate-y-0 sm:block whitespace-nowrap"
             >
               {t("nav.build")}
             </Link>

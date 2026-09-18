@@ -94,7 +94,7 @@ function SectionShell({ title, hint, children, open, onToggle }: { title: string
 }
 
 export default function Builder() {
-  const { resume, setResume, loadRole, savedAt, saveToCloud, activeResumeId } = useResume();
+  const { resume, setResume, loadRole, savedAt, saveToCloud, activeResumeId, sessionChanges } = useResume();
   const { toast } = useToast();
   const { user, isPro, freeExportsLeft, consumeDownload } = useAuth();
   const { t, getRoleTitle } = useI18n();
@@ -288,24 +288,38 @@ export default function Builder() {
     setJdAnalyzed(matchKeywords({ ...resume, skills: [...resume.skills, ...missing] }, jdAnalyzed));
   };
 
-  const handleSelectSection = (sec: ResumeSectionKey, subfield?: string, itemId?: string) => {
+  const handleSelectSection = (
+    sec: ResumeSectionKey,
+    subfield?: string,
+    itemId?: string,
+    bulletText?: string,
+    bulletIndex?: number
+  ) => {
     // 1. Switch tab immediately
     setTab(sec);
 
-    // 2. Schedule deep focus and scroll to field
+    // 2. Schedule deep focus, scrolling and exact text selection
     setTimeout(() => {
       let targetEl: HTMLElement | null = null;
 
       // Direct item-level match
       if (itemId) {
         if (subfield) {
-          targetEl =
-            document.getElementById(`${sec}-${subfield}-${itemId}`) ||
-            document.getElementById(`xp-${subfield}-${itemId}`) ||
-            document.getElementById(`edu-${subfield}-${itemId}`) ||
-            document.getElementById(`project-${subfield}-${itemId}`) ||
-            document.getElementById(`volunteer-${subfield}-${itemId}`) ||
-            document.getElementById(`volunteer-role-${itemId}`);
+          if (subfield === "bullets") {
+            targetEl =
+              document.getElementById(`xp-bullets-${itemId}`) ||
+              document.getElementById(`project-bullets-${itemId}`) ||
+              document.getElementById(`${sec}-bullets-${itemId}`);
+          }
+          if (!targetEl) {
+            targetEl =
+              document.getElementById(`${sec}-${subfield}-${itemId}`) ||
+              document.getElementById(`xp-${subfield}-${itemId}`) ||
+              document.getElementById(`edu-${subfield}-${itemId}`) ||
+              document.getElementById(`project-${subfield}-${itemId}`) ||
+              document.getElementById(`volunteer-${subfield}-${itemId}`) ||
+              document.getElementById(`volunteer-role-${itemId}`);
+          }
         }
         if (!targetEl) {
           targetEl =
@@ -330,7 +344,7 @@ export default function Builder() {
         if (sec === "summary") targetEl = document.getElementById("summary-textarea");
         else if (sec === "skills") targetEl = document.getElementById("skills-input");
         else if (sec === "contact") targetEl = document.getElementById("contact-fullName");
-        else if (sec === "experience") targetEl = document.querySelector("#xp-tab-container input, #xp-tab-container textarea");
+        else if (sec === "experience") targetEl = document.querySelector("#xp-tab-container textarea, #xp-tab-container input");
         else if (sec === "education") targetEl = document.querySelector("#edu-tab-container input");
         else if (sec === "extras") targetEl = document.getElementById("extras-certifications");
         else if (sec === "projects") targetEl = document.querySelector("#projects-tab-container input");
@@ -340,7 +354,48 @@ export default function Builder() {
         targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
         if (targetEl instanceof HTMLInputElement || targetEl instanceof HTMLTextAreaElement) {
           targetEl.focus();
-          if (targetEl instanceof HTMLInputElement) {
+
+          if (targetEl instanceof HTMLTextAreaElement) {
+            const val = targetEl.value;
+            if (bulletText && bulletText.trim().length > 0) {
+              const needle = bulletText.trim();
+              let startIdx = val.indexOf(needle);
+              if (startIdx === -1 && needle.length > 20) {
+                startIdx = val.indexOf(needle.slice(0, 20));
+              }
+              if (startIdx !== -1) {
+                const nextNl = val.indexOf("\n", startIdx);
+                const endIdx = nextNl !== -1 ? nextNl : val.length;
+                targetEl.setSelectionRange(startIdx, endIdx);
+              } else if (bulletIndex !== undefined) {
+                const lines = val.split("\n");
+                if (lines[bulletIndex] !== undefined) {
+                  let offset = 0;
+                  for (let k = 0; k < bulletIndex; k++) {
+                    offset += lines[k].length + 1;
+                  }
+                  targetEl.setSelectionRange(offset, offset + lines[bulletIndex].length);
+                } else {
+                  targetEl.select();
+                }
+              } else {
+                targetEl.select();
+              }
+            } else if (bulletIndex !== undefined) {
+              const lines = val.split("\n");
+              if (lines[bulletIndex] !== undefined) {
+                let offset = 0;
+                for (let k = 0; k < bulletIndex; k++) {
+                  offset += lines[k].length + 1;
+                }
+                targetEl.setSelectionRange(offset, offset + lines[bulletIndex].length);
+              } else {
+                targetEl.select();
+              }
+            } else {
+              targetEl.select();
+            }
+          } else if (targetEl instanceof HTMLInputElement) {
             targetEl.select();
           }
         }
@@ -353,7 +408,7 @@ export default function Builder() {
       const labelName = subfield
         ? subfield.charAt(0).toUpperCase() + subfield.slice(1)
         : sec.toUpperCase();
-      toast(`Focused ${labelName} in editor`, "ok");
+      toast(`Selected ${labelName} · Session auto-saved`, "ok");
     }, 90);
   };
 
@@ -506,6 +561,17 @@ export default function Builder() {
             >
               <span>🖱️ Tour</span>
             </button>
+
+            {/* Live Session & Changes Auto-save Status Indicator */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2 py-0.5 border border-ink/20 bg-white font-mono text-[11px] text-ink-soft select-none" title="All edits are auto-saved to your persistent session draft">
+              <span className="h-2 w-2 rounded-full bg-pine animate-pulse" />
+              <span className="font-bold text-pine-deep">Session Active</span>
+              {sessionChanges > 0 ? (
+                <span className="text-neutral-500 font-medium">({sessionChanges} saved)</span>
+              ) : (
+                <span className="text-neutral-400 font-medium">Synced</span>
+              )}
+            </div>
           </div>
 
           {/* Right section: Sample, Upload, Export, More Menu */}

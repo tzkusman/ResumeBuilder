@@ -77,6 +77,8 @@ interface ResumeCtx {
   replaceResume: (r: ResumeData) => void;
   loadRole: (slug: string) => boolean;
   savedAt: number | null;
+  sessionChanges: number;
+  resetSessionChanges: () => void;
   saveToCloud: () => Promise<boolean>;
   activeResumeId: string | null;
   setActiveResumeId: (id: string | null) => void;
@@ -319,6 +321,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [activeResumeId, setActiveResumeId] = useState<string | null>(null);
   const [resume, setResumeState] = useState<ResumeData>(() => {
     try {
+      const sessionDraft = sessionStorage.getItem("rb_session_draft_v1");
+      if (sessionDraft) {
+        const parsed = JSON.parse(sessionDraft) as ResumeData;
+        if (parsed && parsed.contact) return parsed;
+      }
       const raw = localStorage.getItem(LS_RESUME);
       if (raw) {
         const parsed = JSON.parse(raw) as ResumeData;
@@ -327,14 +334,23 @@ export function AppProviders({ children }: { children: ReactNode }) {
     } catch { /* fall through to empty */ }
     return emptyResume();
   });
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(Date.now());
+  const [sessionChanges, setSessionChanges] = useState<number>(0);
   const firstRun = useRef(true);
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
-    localStorage.setItem(LS_RESUME, JSON.stringify(resume));
+    try {
+      localStorage.setItem(LS_RESUME, JSON.stringify(resume));
+      sessionStorage.setItem("rb_session_draft_v1", JSON.stringify(resume));
+    } catch {
+      // Storage quota safety
+    }
     setSavedAt(Date.now());
+    setSessionChanges((prev) => prev + 1);
   }, [resume]);
+
+  const resetSessionChanges = useCallback(() => setSessionChanges(0), []);
 
   const setResume = useCallback((fn: (r: ResumeData) => ResumeData) => setResumeState(fn), []);
   const replaceResume = useCallback((r: ResumeData) => setResumeState(r), []);
@@ -428,12 +444,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
     replaceResume,
     loadRole,
     savedAt,
+    sessionChanges,
+    resetSessionChanges,
     saveToCloud,
     activeResumeId,
     setActiveResumeId,
     loadCloudResume,
     createNewResume,
-  }), [resume, setResume, replaceResume, loadRole, savedAt, saveToCloud, activeResumeId, loadCloudResume, createNewResume]);
+  }), [resume, setResume, replaceResume, loadRole, savedAt, sessionChanges, resetSessionChanges, saveToCloud, activeResumeId, loadCloudResume, createNewResume]);
 
   return (
     <ToastContext.Provider value={toastValue}>

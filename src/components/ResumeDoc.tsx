@@ -576,12 +576,28 @@ export default function ResumeDoc({
   const handleUniversalClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!onSelectSection) return;
 
-    // Do not trigger if user is actively highlighting/selecting text (e.g. copying text)
+    // Do not trigger if user is actively highlighting/selecting text (e.g. copying text with cursor)
     const sel = window.getSelection();
-    if (sel && sel.toString().trim().length > 1) return;
+    if (sel && sel.toString().trim().length > 0) return;
 
     const target = e.target as HTMLElement;
     if (!target) return;
+
+    // Extract bullet text and index if clicked element is an li or inside an li
+    const liEl = target.closest("li");
+    let bulletText: string | undefined = undefined;
+    let bulletIndex: number | undefined = undefined;
+    if (liEl) {
+      bulletText = liEl.getAttribute("data-bullet-text") || (liEl.innerText || liEl.textContent || "").trim();
+      const bIdxAttr = liEl.getAttribute("data-bullet-index");
+      if (bIdxAttr) {
+        bulletIndex = parseInt(bIdxAttr, 10);
+      } else if (liEl.parentElement) {
+        const lis = Array.from(liEl.parentElement.querySelectorAll("li"));
+        const idx = lis.indexOf(liEl);
+        if (idx !== -1) bulletIndex = idx;
+      }
+    }
 
     // 1. Direct explicit data-attribute matching (from getItemProps or getSectionProps)
     const subEl = target.closest("[data-subfield]") as HTMLElement | null;
@@ -607,7 +623,7 @@ export default function ResumeDoc({
           if (matchedXp) item = matchedXp.id;
         }
         if (!sub) {
-          if (target.tagName === "LI" || !!target.closest("li") || (target.closest("ul") && !target.closest("h3, h4, p"))) {
+          if (liEl || target.tagName === "LI" || !!target.closest("li")) {
             sub = "bullets";
           } else if (target.tagName === "H3" || target.tagName === "H4" || (target.tagName === "P" && !text.includes("–") && !text.includes("-") && !text.includes("present"))) {
             sub = "role";
@@ -642,7 +658,7 @@ export default function ResumeDoc({
           if (matchedP) item = matchedP.id;
         }
         if (!sub) {
-          if (target.tagName === "LI" || !!target.closest("li")) {
+          if (liEl || target.tagName === "LI" || !!target.closest("li")) {
             sub = "bullets";
           } else {
             sub = "title";
@@ -651,18 +667,22 @@ export default function ResumeDoc({
       }
 
       e.stopPropagation();
-      onSelectSection(s, sub, item);
+      onSelectSection(s, sub, item, bulletText, bulletIndex);
       return;
     }
 
-    // 2. Intelligent deep content heuristic matching
+    // 2. Intelligent deep content heuristic matching (works across all 20 templates without data attributes)
     const rawText = (target.innerText || target.textContent || "").trim();
     const text = rawText.toLowerCase();
-    const container = target.closest("section, aside, header, div, li, ul, p");
-    const containerText = (container?.textContent || "").toLowerCase();
+
+    // Look at the containing semantic block
+    const secContainer = target.closest("section, aside, header") as HTMLElement | null;
+    const headingText = (secContainer?.querySelector("h1, h2, h3, h4")?.textContent || "").toLowerCase();
+    const containerText = ((secContainer?.textContent || "") + " " + headingText).toLowerCase();
 
     // A. Languages
     if (
+      headingText.includes("language") ||
       containerText.includes("language") ||
       text.includes("native") ||
       text.includes("fluent") ||
@@ -678,7 +698,8 @@ export default function ResumeDoc({
 
     // B. Certifications
     if (
-      containerText.includes("certification") ||
+      headingText.includes("cert") ||
+      containerText.includes("cert") ||
       text.includes("certified") ||
       text.includes("aws") ||
       text.includes("cka") ||
@@ -692,6 +713,7 @@ export default function ResumeDoc({
 
     // C. Volunteer
     if (
+      headingText.includes("volunteer") ||
       containerText.includes("volunteer") ||
       (data.volunteer || []).some((v) => (v.org && text.includes(v.org.toLowerCase())) || (v.role && text.includes(v.role.toLowerCase())))
     ) {
@@ -701,25 +723,28 @@ export default function ResumeDoc({
       return;
     }
 
-    // D. Projects
+    // D. Projects / Key Deliverables
     if (
-      containerText.includes("project") ||
-      containerText.includes("deliverable") ||
+      headingText.includes("project") ||
+      headingText.includes("deliverable") ||
+      headingText.includes("system") ||
       (data.projects || []).some((p) => p.title && (text.includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(text)))
     ) {
       e.stopPropagation();
       const matchedP = (data.projects || []).find((p) => p.title && (text.includes(p.title.toLowerCase()) || p.title.toLowerCase().includes(text)));
-      onSelectSection("projects", "title", matchedP?.id);
+      const isBullet = !!liEl;
+      onSelectSection("projects", isBullet ? "bullets" : "title", matchedP?.id, bulletText, bulletIndex);
       return;
     }
 
-    // E. Skills
+    // E. Skills & Proficiencies
     if (
-      containerText.includes("skills") ||
-      containerText.includes("technologies") ||
-      containerText.includes("expertise") ||
-      containerText.includes("proficiencies") ||
-      (data.skills || []).some((s) => s && (text.includes(s.toLowerCase()) || s.toLowerCase().includes(text)))
+      headingText.includes("skill") ||
+      headingText.includes("technologies") ||
+      headingText.includes("expertise") ||
+      headingText.includes("proficienc") ||
+      headingText.includes("competenc") ||
+      (data.skills || []).some((sk) => sk && (text.includes(sk.toLowerCase()) || sk.toLowerCase().includes(text)))
     ) {
       e.stopPropagation();
       onSelectSection("skills", "skills");
@@ -728,8 +753,8 @@ export default function ResumeDoc({
 
     // F. Education
     if (
-      containerText.includes("education") ||
-      containerText.includes("academic") ||
+      headingText.includes("education") ||
+      headingText.includes("academic") ||
       text.includes("bachelor") ||
       text.includes("master") ||
       text.includes("ph.d") ||
@@ -746,17 +771,21 @@ export default function ResumeDoc({
         (ed.school && text.includes(ed.school.toLowerCase())) ||
         (ed.degree && text.includes(ed.degree.toLowerCase()))
       );
-      onSelectSection("education", "school", matchedEdu?.id || data.education[0]?.id);
+      const isDegree = text.includes("bachelor") || text.includes("master") || text.includes("degree") || text.includes("b.s") || text.includes("m.s");
+      const isYear = text.includes("20") || text.includes("19");
+      const eduSub = isDegree ? "degree" : isYear ? "year" : "school";
+      onSelectSection("education", eduSub, matchedEdu?.id || data.education[0]?.id);
       return;
     }
 
-    // G. Experience
+    // G. Experience & Career History
     if (
-      containerText.includes("experience") ||
-      containerText.includes("work history") ||
-      containerText.includes("employment") ||
-      containerText.includes("chronology") ||
-      target.closest("ul") ||
+      headingText.includes("experience") ||
+      headingText.includes("work") ||
+      headingText.includes("career") ||
+      headingText.includes("employment") ||
+      headingText.includes("history") ||
+      liEl ||
       (data.experience || []).some((x) =>
         (x.company && text.includes(x.company.toLowerCase())) ||
         (x.role && text.includes(x.role.toLowerCase())) ||
@@ -769,16 +798,17 @@ export default function ResumeDoc({
         (x.role && text.includes(x.role.toLowerCase())) ||
         x.bullets.some((b) => b && (text.includes(b.slice(0, 15).toLowerCase()) || b.toLowerCase().includes(text.slice(0, 15))))
       );
-      const isBullet = target.tagName === "LI" || !!target.closest("li");
-      onSelectSection("experience", isBullet ? "bullets" : "role", matchedXp?.id || data.experience[0]?.id);
+      const isBullet = !!liEl || target.tagName === "LI" || !!target.closest("li");
+      onSelectSection("experience", isBullet ? "bullets" : "role", matchedXp?.id || data.experience[0]?.id, bulletText, bulletIndex);
       return;
     }
 
-    // H. Summary / Profile
+    // H. Summary / Profile / Statement
     if (
-      containerText.includes("summary") ||
-      containerText.includes("profile") ||
-      containerText.includes("about") ||
+      headingText.includes("summary") ||
+      headingText.includes("profile") ||
+      headingText.includes("statement") ||
+      headingText.includes("about") ||
       (data.summary && (text.includes(data.summary.slice(0, 20).toLowerCase()) || data.summary.toLowerCase().includes(text.slice(0, 20))))
     ) {
       e.stopPropagation();
@@ -788,12 +818,12 @@ export default function ResumeDoc({
 
     // I. Contact & Header info
     if (
-      containerText.includes("contact") ||
-      target.closest("header") ||
-      target.closest("aside") ||
+      secContainer?.tagName === "HEADER" ||
+      secContainer?.tagName === "ASIDE" ||
       text.includes("@") ||
       text.includes("http") ||
       text.includes("linkedin") ||
+      text.match(/\+?\d[\d\s\-().]{7,}/) ||
       (c.fullName && text.includes(c.fullName.toLowerCase())) ||
       (c.title && text.includes(c.title.toLowerCase())) ||
       (c.email && text.includes(c.email.toLowerCase())) ||
@@ -802,12 +832,12 @@ export default function ResumeDoc({
     ) {
       e.stopPropagation();
       let sub = "fullName";
-      if (c.email && text.includes(c.email.toLowerCase())) sub = "email";
-      else if (c.phone && text.includes(c.phone.toLowerCase())) sub = "phone";
+      if (text.includes("@") || (c.email && text.includes(c.email.toLowerCase()))) sub = "email";
+      else if (text.match(/\+?\d[\d\s\-().]{7,}/) || (c.phone && text.includes(c.phone.toLowerCase()))) sub = "phone";
       else if (c.location && text.includes(c.location.toLowerCase())) sub = "location";
       else if (c.title && text.includes(c.title.toLowerCase())) sub = "title";
-      else if (c.website && text.includes(c.website.toLowerCase())) sub = "website";
-      else if (c.linkedin && text.includes(c.linkedin.toLowerCase())) sub = "linkedin";
+      else if (text.includes("linkedin") || (c.linkedin && text.includes(c.linkedin.toLowerCase()))) sub = "linkedin";
+      else if (text.includes("http") || text.includes(".com") || (c.website && text.includes(c.website.toLowerCase()))) sub = "website";
       onSelectSection("contact", sub);
       return;
     }

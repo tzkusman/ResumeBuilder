@@ -5,7 +5,9 @@ export type ResumeSectionKey = "contact" | "summary" | "experience" | "education
 export type OnSelectSectionFn = (
   section: ResumeSectionKey,
   subfield?: string,
-  itemId?: string
+  itemId?: string,
+  bulletText?: string,
+  bulletIndex?: number
 ) => void;
 
 export interface TemplateProps {
@@ -73,6 +75,9 @@ export function getSectionProps(
 
   return {
     onClick: (e: React.MouseEvent) => {
+      // If the user was highlighting/dragging text to copy, don't hijack mouseup/click
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) return;
       e.stopPropagation();
       onSelectSection(section);
     },
@@ -88,17 +93,24 @@ export function getItemProps(
   section: ResumeSectionKey,
   subfield?: string,
   itemId?: string,
-  onSelectSection?: OnSelectSectionFn
+  onSelectSection?: OnSelectSectionFn,
+  bulletText?: string,
+  bulletIndex?: number
 ) {
   if (!onSelectSection) return {};
 
   return {
     onClick: (e: React.MouseEvent) => {
+      // If the user was highlighting/dragging text to copy, don't hijack mouseup/click
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) return;
       e.stopPropagation();
-      onSelectSection(section, subfield, itemId);
+      onSelectSection(section, subfield, itemId, bulletText, bulletIndex);
     },
     "data-section": section,
     "data-subfield": subfield,
     "data-item-id": itemId,
+    "data-bullet-text": bulletText || undefined,
+    "data-bullet-index": bulletIndex !== undefined ? String(bulletIndex) : undefined,
   };
 }

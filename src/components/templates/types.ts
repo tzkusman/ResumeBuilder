@@ -71,18 +71,20 @@ export function getSectionProps(
   section: ResumeSectionKey,
   onSelectSection?: OnSelectSectionFn
 ) {
-  if (!onSelectSection) return {};
+  const base: Record<string, any> = {
+    "data-section": section,
+  };
 
-  return {
-    onClick: (e: React.MouseEvent) => {
-      // If the user was highlighting/dragging text to copy, don't hijack mouseup/click
+  if (onSelectSection) {
+    base.onClick = (e: React.MouseEvent) => {
       const sel = window.getSelection();
       if (sel && sel.toString().trim().length > 0) return;
       e.stopPropagation();
       onSelectSection(section);
-    },
-    "data-section": section,
-  };
+    };
+  }
+
+  return base;
 }
 
 /**
@@ -97,20 +99,23 @@ export function getItemProps(
   bulletText?: string,
   bulletIndex?: number
 ) {
-  if (!onSelectSection) return {};
-
-  return {
-    onClick: (e: React.MouseEvent) => {
-      // If the user was highlighting/dragging text to copy, don't hijack mouseup/click
-      const sel = window.getSelection();
-      if (sel && sel.toString().trim().length > 0) return;
-      e.stopPropagation();
-      onSelectSection(section, subfield, itemId, bulletText, bulletIndex);
-    },
+  const base: Record<string, any> = {
     "data-section": section,
     "data-subfield": subfield,
     "data-item-id": itemId,
     "data-bullet-text": bulletText || undefined,
     "data-bullet-index": bulletIndex !== undefined ? String(bulletIndex) : undefined,
   };
+
+  if (onSelectSection) {
+    base.onClick = (e: React.MouseEvent) => {
+      // If the user was highlighting/dragging text to copy, don't hijack mouseup/click
+      const sel = window.getSelection();
+      if (sel && sel.toString().trim().length > 0) return;
+      e.stopPropagation();
+      onSelectSection(section, subfield, itemId, bulletText, bulletIndex);
+    };
+  }
+
+  return base;
 }

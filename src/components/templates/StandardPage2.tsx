@@ -92,7 +92,7 @@ export default function StandardPage2({
                       {e.location && <p className="text-[11px] text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                       <ul className="mt-1.5 space-y-1" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                         {e.bullets.filter(Boolean).map((b, i) => (
-                          <li key={i} className="flex gap-2 text-[12px] leading-snug" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
+                          <li key={i} className="flex gap-2 text-[12px] leading-snug" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                             <span className="mt-[6px] h-[3px] w-[3px] shrink-0" style={{ background: accent }} />
                             {b}
                           </li>
@@ -186,7 +186,7 @@ export default function StandardPage2({
                   </p>
                   <ul className="mt-1 space-y-0.5" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
                     {e.bullets.filter(Boolean).map((b, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[12px] leading-snug text-neutral-700" {...getItemProps("experience", "bullets", e.id, onSelectSection)}>
+                      <li key={i} className="flex items-start gap-2 text-[12px] leading-snug text-neutral-700" {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>
                         <span className="mt-[6px] h-[3px] w-[3px] shrink-0 rounded-full" style={{ background: accent }} />
                         <span>{b}</span>
                       </li>

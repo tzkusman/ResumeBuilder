@@ -594,10 +594,11 @@ function annotateResumeDocument(container: HTMLElement, data: ResumeData) {
     }
   });
 
-  // 2. Tag Sections by Headings
-  const blocks = container.querySelectorAll("section, aside, header, div");
+  // 2. Tag Sections by Headings (only real sections/asides/headers, never full page wrappers)
+  const blocks = container.querySelectorAll("section, aside, header, div[class*='group/sec']");
   blocks.forEach((block) => {
     const el = block as HTMLElement;
+    if (el.classList.contains("resume-sheet") || el.classList.contains("page-2")) return;
     const heading = el.querySelector("h2, h3, h4, [class*='font-bold'], [class*='tracking-']") as HTMLElement | null;
     if (!heading) return;
     const hText = (heading.innerText || heading.textContent || "").toLowerCase().trim();
@@ -645,118 +646,165 @@ function annotateResumeDocument(container: HTMLElement, data: ResumeData) {
   });
 
   // 3. Experience Items & Individual Bullets
-  const xpContainers = container.querySelectorAll("[data-section='experience']");
+  const xpContainers = container.querySelectorAll("section[data-section='experience'], aside[data-section='experience'], div[data-section='experience']:not([data-section='experience'] *)");
   xpContainers.forEach((xpSec) => {
-    xp.forEach((e) => {
-      // Look for role or company inside
-      const candidates = xpSec.querySelectorAll("div, article, p, h3, h4");
-      for (let i = 0; i < candidates.length; i++) {
-        const cand = candidates[i] as HTMLElement;
-        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
-        const roleMatch = e.role && (txt.includes(e.role.toLowerCase()) || e.role.toLowerCase().includes(txt));
-        const compMatch = e.company && (txt.includes(e.company.toLowerCase()) || e.company.toLowerCase().includes(txt));
-
-        if (roleMatch || compMatch) {
-          const entry = cand.closest("div[class*='border'], div.group, div.space-y, div.p-, div:not([data-section='experience'])") as HTMLElement || cand;
-          if (entry && entry !== xpSec) {
-            entry.setAttribute("data-section", "experience");
-            entry.setAttribute("data-item-id", e.id);
-          }
-          if (roleMatch) {
-            cand.setAttribute("data-section", "experience");
-            cand.setAttribute("data-subfield", "role");
-            cand.setAttribute("data-item-id", e.id);
-          }
-          if (compMatch) {
-            cand.setAttribute("data-section", "experience");
-            cand.setAttribute("data-subfield", "company");
-            cand.setAttribute("data-item-id", e.id);
-          }
+    // If elements inside this section already have explicit data-item-id (from getItemProps), NEVER overwrite them!
+    const preAnnotated = xpSec.querySelectorAll("[data-item-id]");
+    if (preAnnotated.length > 0) {
+      preAnnotated.forEach((entryEl) => {
+        const itemId = entryEl.getAttribute("data-item-id");
+        if (itemId) {
+          const directLis = entryEl.querySelectorAll("li");
+          directLis.forEach((li, idx) => {
+            if (!li.getAttribute("data-item-id")) {
+              li.setAttribute("data-section", "experience");
+              li.setAttribute("data-subfield", "bullets");
+              li.setAttribute("data-item-id", itemId);
+              li.setAttribute("data-bullet-index", String(idx));
+              const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+              if (bulletClean) li.setAttribute("data-bullet-text", bulletClean);
+            }
+          });
         }
+      });
+      return;
+    }
+
+    // Identify card containers safely: direct sibling children of the cards list wrapper
+    const listWrapper = xpSec.querySelector("div[class*='space-y'], div.space-y") || xpSec;
+    const cards = Array.from(listWrapper.children).filter((ch) => {
+      const tag = ch.tagName.toLowerCase();
+      return (tag === "div" || tag === "article") && ch !== listWrapper && !ch.querySelector("h2");
+    }) as HTMLElement[];
+
+    cards.forEach((card, idx) => {
+      const e = xp[idx];
+      if (!e) return;
+      if (!card.getAttribute("data-item-id")) {
+        card.setAttribute("data-section", "experience");
+        card.setAttribute("data-item-id", e.id);
       }
 
-      // Explicitly tag every bullet in this job's entry
-      const entryEl = xpSec.querySelector(`[data-item-id='${e.id}']`);
-      if (entryEl) {
-        const lis = entryEl.querySelectorAll("li");
-        lis.forEach((li, idx) => {
+      const lis = card.querySelectorAll("li");
+      lis.forEach((li, bIdx) => {
+        if (!li.getAttribute("data-item-id")) {
           li.setAttribute("data-section", "experience");
           li.setAttribute("data-subfield", "bullets");
           li.setAttribute("data-item-id", e.id);
-          li.setAttribute("data-bullet-index", String(idx));
+          li.setAttribute("data-bullet-index", String(bIdx));
           const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
-          if (bulletClean) {
-            li.setAttribute("data-bullet-text", bulletClean);
-          }
-        });
-      }
+          if (bulletClean) li.setAttribute("data-bullet-text", bulletClean);
+        }
+      });
+
+      const headings = card.querySelectorAll("h3, h4, p, span");
+      headings.forEach((h) => {
+        const txt = (h.textContent || "").toLowerCase();
+        if (e.role && txt.includes(e.role.toLowerCase())) {
+          h.setAttribute("data-section", "experience");
+          h.setAttribute("data-subfield", "role");
+          h.setAttribute("data-item-id", e.id);
+        } else if (e.company && txt.includes(e.company.toLowerCase())) {
+          h.setAttribute("data-section", "experience");
+          h.setAttribute("data-subfield", "company");
+          h.setAttribute("data-item-id", e.id);
+        }
+      });
     });
   });
 
   // 4. Education Items
   const eduContainers = container.querySelectorAll("[data-section='education']");
   eduContainers.forEach((eduSec) => {
-    edu.forEach((ed) => {
-      const candidates = eduSec.querySelectorAll("div, p, span, h4");
-      for (let i = 0; i < candidates.length; i++) {
-        const cand = candidates[i] as HTMLElement;
-        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
-        const degMatch = ed.degree && txt.includes(ed.degree.toLowerCase());
-        const schMatch = ed.school && txt.includes(ed.school.toLowerCase());
-        if (degMatch || schMatch) {
-          const entry = cand.closest("div:not([data-section='education'])") as HTMLElement || cand;
-          if (entry && entry !== eduSec) {
-            entry.setAttribute("data-section", "education");
-            entry.setAttribute("data-item-id", ed.id);
-          }
-          if (degMatch) {
-            cand.setAttribute("data-section", "education");
-            cand.setAttribute("data-subfield", "degree");
-            cand.setAttribute("data-item-id", ed.id);
-          }
-          if (schMatch) {
-            cand.setAttribute("data-section", "education");
-            cand.setAttribute("data-subfield", "school");
-            cand.setAttribute("data-item-id", ed.id);
-          }
-        }
+    const preAnnotated = eduSec.querySelectorAll("[data-item-id]");
+    if (preAnnotated.length > 0) return;
+
+    const listWrapper = eduSec.querySelector("div[class*='space-y'], div.space-y") || eduSec;
+    const cards = Array.from(listWrapper.children).filter((ch) => {
+      const tag = ch.tagName.toLowerCase();
+      return (tag === "div" || tag === "article") && ch !== listWrapper;
+    }) as HTMLElement[];
+
+    cards.forEach((card, idx) => {
+      const ed = edu[idx];
+      if (!ed) return;
+      if (!card.getAttribute("data-item-id")) {
+        card.setAttribute("data-section", "education");
+        card.setAttribute("data-item-id", ed.id);
       }
+      const candidates = card.querySelectorAll("p, span, h4");
+      candidates.forEach((cand) => {
+        const txt = (cand.textContent || "").toLowerCase();
+        if (ed.degree && txt.includes(ed.degree.toLowerCase())) {
+          cand.setAttribute("data-section", "education");
+          cand.setAttribute("data-subfield", "degree");
+          cand.setAttribute("data-item-id", ed.id);
+        } else if (ed.school && txt.includes(ed.school.toLowerCase())) {
+          cand.setAttribute("data-section", "education");
+          cand.setAttribute("data-subfield", "school");
+          cand.setAttribute("data-item-id", ed.id);
+        }
+      });
     });
   });
 
   // 5. Projects Items & Bullets
   const projContainers = container.querySelectorAll("[data-section='projects']");
   projContainers.forEach((projSec) => {
-    projects.forEach((p) => {
-      const candidates = projSec.querySelectorAll("div, p, h3, h4");
-      for (let i = 0; i < candidates.length; i++) {
-        const cand = candidates[i] as HTMLElement;
-        const txt = (cand.innerText || cand.textContent || "").toLowerCase();
+    const preAnnotated = projSec.querySelectorAll("[data-item-id]");
+    if (preAnnotated.length > 0) {
+      preAnnotated.forEach((entryEl) => {
+        const itemId = entryEl.getAttribute("data-item-id");
+        if (itemId) {
+          const directLis = entryEl.querySelectorAll("li");
+          directLis.forEach((li, idx) => {
+            if (!li.getAttribute("data-item-id")) {
+              li.setAttribute("data-section", "projects");
+              li.setAttribute("data-subfield", "bullets");
+              li.setAttribute("data-item-id", itemId);
+              li.setAttribute("data-bullet-index", String(idx));
+              const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+              if (bulletClean) li.setAttribute("data-bullet-text", bulletClean);
+            }
+          });
+        }
+      });
+      return;
+    }
+
+    const listWrapper = projSec.querySelector("div[class*='space-y'], div.space-y") || projSec;
+    const cards = Array.from(listWrapper.children).filter((ch) => {
+      const tag = ch.tagName.toLowerCase();
+      return (tag === "div" || tag === "article") && ch !== listWrapper;
+    }) as HTMLElement[];
+
+    cards.forEach((card, idx) => {
+      const p = projects[idx];
+      if (!p) return;
+      if (!card.getAttribute("data-item-id")) {
+        card.setAttribute("data-section", "projects");
+        card.setAttribute("data-item-id", p.id);
+      }
+      const lis = card.querySelectorAll("li");
+      lis.forEach((li, bIdx) => {
+        if (!li.getAttribute("data-item-id")) {
+          li.setAttribute("data-section", "projects");
+          li.setAttribute("data-subfield", "bullets");
+          li.setAttribute("data-item-id", p.id);
+          li.setAttribute("data-bullet-index", String(bIdx));
+          const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
+          if (bulletClean) li.setAttribute("data-bullet-text", bulletClean);
+        }
+      });
+      const candidates = card.querySelectorAll("p, h3, h4, span");
+      candidates.forEach((cand) => {
+        const txt = (cand.textContent || "").toLowerCase();
         if (p.title && txt.includes(p.title.toLowerCase())) {
-          const entry = cand.closest("div:not([data-section='projects'])") as HTMLElement || cand;
-          if (entry && entry !== projSec) {
-            entry.setAttribute("data-section", "projects");
-            entry.setAttribute("data-item-id", p.id);
-          }
           cand.setAttribute("data-section", "projects");
           cand.setAttribute("data-subfield", "title");
           cand.setAttribute("data-item-id", p.id);
         }
-      }
-      const entryEl = projSec.querySelector(`[data-item-id='${p.id}']`);
-      if (entryEl) {
-        const lis = entryEl.querySelectorAll("li");
-        lis.forEach((li, idx) => {
-          li.setAttribute("data-section", "projects");
-          li.setAttribute("data-subfield", "bullets");
-          li.setAttribute("data-item-id", p.id);
-          li.setAttribute("data-bullet-index", String(idx));
-          const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
-          if (bulletClean) {
-            li.setAttribute("data-bullet-text", bulletClean);
-          }
-        });
-      }
+      });
     });
   });
 
@@ -772,7 +820,7 @@ function annotateResumeDocument(container: HTMLElement, data: ResumeData) {
         li.setAttribute("data-section", "experience");
       }
       const parentItem = li.closest("[data-item-id]") as HTMLElement | null;
-      if (parentItem) {
+      if (parentItem && parentItem !== parentSec && !li.getAttribute("data-item-id")) {
         li.setAttribute("data-item-id", parentItem.getAttribute("data-item-id") || "");
       }
       const bulletClean = (li.innerText || li.textContent || "").replace(/^[\s•\->\*\–·]+/, "").trim();
@@ -873,13 +921,59 @@ export default function ResumeDoc({
 
       // Deep resolve experience item and subfield if missing
       if (s === "experience") {
-        if (!item) {
-          const matchedXp = (data.experience || []).find((x) =>
-            (x.company && (text.includes(x.company.toLowerCase()) || x.company.toLowerCase().includes(text))) ||
-            (x.role && (text.includes(x.role.toLowerCase()) || x.role.toLowerCase().includes(text))) ||
-            x.bullets.some((b) => b && (text.includes(b.slice(0, 15).toLowerCase()) || b.toLowerCase().includes(text.slice(0, 15))))
-          );
-          if (matchedXp) item = matchedXp.id;
+        // Validate that if item was captured, it actually exists in data.experience
+        if (item && !(data.experience || []).some((x) => x.id === item)) {
+          item = undefined;
+        }
+
+        // If clicking on section header or general section container, DO NOT select role 2!
+        const isHeaderOrSection =
+          target.tagName === "H2" ||
+          target.tagName === "H1" ||
+          target === secEl ||
+          text === "experience" ||
+          text === "work" ||
+          text === "work history" ||
+          text === "career path" ||
+          text === "career history" ||
+          text === "executive experience" ||
+          text === "career chronology" ||
+          text === "professional experience";
+
+        if (isHeaderOrSection) {
+          item = undefined;
+          sub = undefined;
+        } else if (!item) {
+          // 1. Most specific: match by bullet text
+          if (bulletText && bulletText.length > 3) {
+            const bMatch = (data.experience || []).find((x) =>
+              x.bullets.some((b) => b && (b.toLowerCase().includes(bulletText.toLowerCase()) || bulletText.toLowerCase().includes(b.toLowerCase())))
+            );
+            if (bMatch) {
+              item = bMatch.id;
+              sub = "bullets";
+            }
+          }
+          // 2. Specific role match
+          if (!item) {
+            const rMatch = (data.experience || []).find((x) =>
+              x.role && x.role.trim().length > 3 && (text.includes(x.role.trim().toLowerCase()) || x.role.toLowerCase().includes(text))
+            );
+            if (rMatch) {
+              item = rMatch.id;
+              sub = sub || "role";
+            }
+          }
+          // 3. Unique company match only
+          if (!item) {
+            const compMatches = (data.experience || []).filter((x) =>
+              x.company && x.company.trim().length > 2 && (text.includes(x.company.trim().toLowerCase()) || x.company.toLowerCase().includes(text))
+            );
+            if (compMatches.length === 1) {
+              item = compMatches[0].id;
+              sub = sub || "company";
+            }
+          }
         }
         if (!sub) {
           if (liEl || target.tagName === "LI" || !!target.closest("li")) {
@@ -1052,11 +1146,41 @@ export default function ResumeDoc({
       )
     ) {
       e.stopPropagation();
-      const matchedXp = (data.experience || []).find((x) =>
-        (x.company && text.includes(x.company.toLowerCase())) ||
-        (x.role && text.includes(x.role.toLowerCase())) ||
-        x.bullets.some((b) => b && (text.includes(b.slice(0, 15).toLowerCase()) || b.toLowerCase().includes(text.slice(0, 15))))
-      );
+      const isHeader =
+        target.tagName === "H1" ||
+        target.tagName === "H2" ||
+        text === "experience" ||
+        text === "work" ||
+        text === "work history" ||
+        text === "career path" ||
+        text === "career history" ||
+        text === "executive experience" ||
+        text === "career chronology" ||
+        text === "professional experience";
+
+      if (isHeader) {
+        onSelectSection("experience");
+        return;
+      }
+
+      let matchedXp: typeof data.experience[0] | undefined = undefined;
+      if (bulletText && bulletText.length > 3) {
+        matchedXp = (data.experience || []).find((x) =>
+          x.bullets.some((b) => b && (b.toLowerCase().includes(bulletText.toLowerCase()) || bulletText.toLowerCase().includes(b.toLowerCase())))
+        );
+      }
+      if (!matchedXp) {
+        matchedXp = (data.experience || []).find((x) =>
+          x.role && x.role.trim().length > 3 && (text.includes(x.role.toLowerCase()) || x.role.toLowerCase().includes(text))
+        );
+      }
+      if (!matchedXp) {
+        const compMatches = (data.experience || []).filter((x) =>
+          x.company && x.company.trim().length > 2 && (text.includes(x.company.toLowerCase()) || x.company.toLowerCase().includes(text))
+        );
+        if (compMatches.length === 1) matchedXp = compMatches[0];
+      }
+
       const isBullet = !!liEl || target.tagName === "LI" || !!target.closest("li");
       onSelectSection("experience", isBullet ? "bullets" : "role", matchedXp?.id || data.experience[0]?.id, bulletText, bulletIndex);
       return;
@@ -1159,18 +1283,18 @@ export default function ResumeDoc({
         </aside>
         <div className="flex-1 px-8 py-8">
           {data.summary && (<section><h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: accent }}>Profile</h2><p className="mt-1.5 text-[12.5px] leading-relaxed text-neutral-800">{data.summary}</p></section>)}
-          <section className="mt-5">
+          <section className="mt-5" {...getSectionProps("experience", onSelectSection)}>
             <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.24em]" style={{ color: accent }}>Experience</h2>
             <div className="mt-2.5 space-y-3.5">
               {xp.map((e) => (
-                <div key={e.id}>
+                <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                   <div className="flex items-baseline justify-between gap-3">
-                    <p className="text-[13.5px] font-bold">{e.role} <span className="font-semibold" style={{ color: accent }}>· {e.company}</span></p>
-                    <p className="shrink-0 font-mono text-[10px] text-neutral-500">{e.start} – {e.end}</p>
+                    <p className="text-[13.5px] font-bold" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-semibold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>· {e.company}</span></p>
+                    <p className="shrink-0 font-mono text-[10px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{e.start} – {e.end}</p>
                   </div>
-                  {e.location && <p className="text-[11px] text-neutral-500">{e.location}</p>}
+                  {e.location && <p className="text-[11px] text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                   <ul className="mt-1 space-y-1">
-                    {e.bullets.filter(Boolean).map((b, i) => <li key={i} className="flex gap-2 text-[12.5px] leading-snug"><span className="mt-[7px] h-[3px] w-[3px] shrink-0" style={{ background: accent }} />{b}</li>)}
+                    {e.bullets.filter(Boolean).map((b, i) => <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2 text-[12.5px] leading-snug"><span className="mt-[7px] h-[3px] w-[3px] shrink-0" style={{ background: accent }} />{b}</li>)}
                   </ul>
                 </div>
               ))}
@@ -1207,21 +1331,21 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="flex items-center gap-2 font-display text-sm font-black uppercase tracking-wider text-neutral-900">
                 <span className="h-3.5 w-1.5" style={{ background: accent }} /> Experience
               </h2>
               <div className="mt-2.5 space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id} className="border-l-2 pl-3.5" style={{ borderColor: `${accent}40` }}>
+                  <div key={e.id} className="border-l-2 pl-3.5" style={{ borderColor: `${accent}40` }} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-[13.5px] font-bold text-neutral-900">{e.role} <span className="font-bold" style={{ color: accent }}>— {e.company}</span></p>
-                      <span className="font-mono text-[10px] font-bold text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13.5px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-bold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>— {e.company}</span></p>
+                      <span className="font-mono text-[10px] font-bold text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
-                    {e.location && <p className="text-[11px] text-neutral-500">{e.location}</p>}
+                    {e.location && <p className="text-[11px] text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                     <ul className="mt-1 space-y-1">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2 text-[12.5px] leading-snug text-neutral-700">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2 text-[12.5px] leading-snug text-neutral-700">
                           <span className="mt-[6px] h-1 w-1 shrink-0" style={{ background: accent }} /> {b}
                         </li>
                       ))}
@@ -1313,18 +1437,18 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="border-l-4 pl-3 font-mono text-[11px] font-bold uppercase tracking-[0.2em]" style={{ borderColor: accent, color: accent }}>Experience</h2>
               <div className="mt-2.5 space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-[13px] font-bold text-neutral-900">{e.role} <span className="font-semibold" style={{ color: accent }}>@ {e.company}</span>{e.location && <span className="text-[11px] font-normal text-neutral-500"> · {e.location}</span>}</p>
-                      <span className="font-mono text-[10px] text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-semibold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>@ {e.company}</span>{e.location && <span className="text-[11px] font-normal text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}> · {e.location}</span>}</p>
+                      <span className="font-mono text-[10px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 space-y-1">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
                           <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accent }} /> {b}
                         </li>
                       ))}
@@ -1408,18 +1532,18 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="border-b border-neutral-400 pb-0.5 text-[11.5px] font-bold uppercase tracking-[0.2em] text-neutral-900">Experience</h2>
               <div className="mt-2.5 space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[13px] font-bold text-neutral-900">{e.role}, <span className="italic text-neutral-700">{e.company}</span>{e.location && ` — ${e.location}`}</p>
-                      <span className="font-sans text-[10.5px] italic text-neutral-600">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role}, <span className="italic text-neutral-700" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}</span>{e.location && ` — ${e.location}`}</p>
+                      <span className="font-sans text-[10.5px] italic text-neutral-600" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 list-disc pl-5 font-sans space-y-0.5">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="text-[12px] leading-snug text-neutral-700">{b}</li>
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="text-[12px] leading-snug text-neutral-700">{b}</li>
                       ))}
                     </ul>
                   </div>
@@ -1499,19 +1623,19 @@ export default function ResumeDoc({
             )}
 
             {xp.length > 0 && (
-              <section>
+              <section {...getSectionProps("experience", onSelectSection)}>
                 <h2 className="font-serif text-[11px] font-normal uppercase tracking-[0.28em] text-neutral-500">Career History</h2>
                 <div className="mt-2.5 space-y-3.5">
                   {xp.map((e) => (
-                    <div key={e.id}>
+                    <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                       <div className="flex items-baseline justify-between gap-3">
-                        <p className="text-[13px] font-medium text-neutral-900">{e.role} <span className="italic font-serif text-neutral-600" style={{ color: accent }}>/ {e.company}</span></p>
-                        <span className="font-mono text-[9.5px] text-neutral-400">{[e.start, e.end].filter(Boolean).join(" — ")}</span>
+                        <p className="text-[13px] font-medium text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="italic font-serif text-neutral-600" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>/ {e.company}</span></p>
+                        <span className="font-mono text-[9.5px] text-neutral-400" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" — ")}</span>
                       </div>
-                      {e.location && <p className="text-[10.5px] italic text-neutral-400">{e.location}</p>}
+                      {e.location && <p className="text-[10.5px] italic text-neutral-400" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                       <ul className="mt-1 space-y-1">
                         {e.bullets.filter(Boolean).map((b, i) => (
-                          <li key={i} className="flex gap-2.5 text-[12px] leading-relaxed text-neutral-700">
+                          <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2.5 text-[12px] leading-relaxed text-neutral-700">
                             <span className="mt-[7px] h-1 w-1 shrink-0 rotate-45" style={{ background: accent }} /> {b}
                           </li>
                         ))}
@@ -1594,18 +1718,18 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <div className="inline-block px-2.5 py-0.5 text-white font-mono text-[10px] font-bold uppercase tracking-wider" style={{ background: accent }}>Professional Experience</div>
               <div className="mt-2.5 space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[13px] font-bold text-neutral-900">{e.role} <span style={{ color: accent }}>| {e.company}</span>{e.location && <span className="font-normal text-neutral-500"> ({e.location})</span>}</p>
-                      <span className="font-mono text-[10.5px] font-semibold text-neutral-600">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>| {e.company}</span>{e.location && <span className="font-normal text-neutral-500"> ({e.location})</span>}</p>
+                      <span className="font-mono text-[10.5px] font-semibold text-neutral-600" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 space-y-1">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
                           <span className="mt-[6px] h-1.5 w-1.5 shrink-0" style={{ background: accent }} /> {b}
                         </li>
                       ))}
@@ -1694,18 +1818,18 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section className="grid grid-cols-[100px_1fr] gap-4">
+            <section className="grid grid-cols-[100px_1fr] gap-4" {...getSectionProps("experience", onSelectSection)}>
               <span className="font-mono text-[10.5px] font-bold text-neutral-400">02 / WORK</span>
               <div className="space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[13px] font-bold text-neutral-900">{e.role} <span className="font-medium text-neutral-600">· {e.company}</span></p>
-                      <span className="font-mono text-[10px] text-neutral-400">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-medium text-neutral-600" {...getItemProps("experience", "company", e.id, onSelectSection)}>· {e.company}</span></p>
+                      <span className="font-mono text-[10px] text-neutral-400" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 space-y-1 text-[12px] leading-snug text-neutral-700">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2">
                           <span className="text-neutral-400">—</span> {b}
                         </li>
                       ))}
@@ -1779,19 +1903,19 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="font-display text-sm font-black uppercase tracking-wider" style={{ color: accent }}>Career Path</h2>
               <div className="mt-2.5 space-y-3.5 pl-3 border-l-2" style={{ borderColor: `${accent}40` }}>
                 {xp.map((e) => (
-                  <div key={e.id} className="relative">
+                  <div key={e.id} className="relative" {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <span className="absolute -left-[19px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white" style={{ background: accent }} />
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[13.5px] font-bold text-neutral-900">{e.role} <span className="font-semibold" style={{ color: accent }}>@ {e.company}</span></p>
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-mono text-[9.5px] font-bold text-neutral-600">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13.5px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-semibold" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>@ {e.company}</span></p>
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-mono text-[9.5px] font-bold text-neutral-600" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 space-y-1 text-[12px] leading-snug text-neutral-700">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2"><span>✦</span> {b}</li>
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2"><span>✦</span> {b}</li>
                       ))}
                     </ul>
                   </div>
@@ -1890,19 +2014,19 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="font-serif text-[11px] font-bold uppercase tracking-widest text-neutral-800">Executive Experience &amp; Business Impact</h2>
               <div className="mt-2.5 space-y-3.5">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between">
-                      <p className="text-[13.5px] font-bold text-neutral-900">{e.role} <span className="font-serif font-normal italic" style={{ color: accent }}>| {e.company}</span></p>
-                      <span className="font-mono text-[10px] font-bold text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[13.5px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span className="font-serif font-normal italic" style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>| {e.company}</span></p>
+                      <span className="font-mono text-[10px] font-bold text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
-                    {e.location && <p className="text-[11px] text-neutral-500">{e.location}</p>}
+                    {e.location && <p className="text-[11px] text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                     <ul className="mt-1 space-y-1 text-[12px] leading-snug text-neutral-700">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2">
                           <span className="font-bold" style={{ color: accent }}>›</span> {b}
                         </li>
                       ))}
@@ -1993,17 +2117,17 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="text-[12px] font-bold uppercase tracking-[0.2em] border-b border-neutral-400 pb-0.5" style={{ color: accent }}>Academic &amp; Professional Appointments</h2>
               <div className="mt-2.5 space-y-3">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex justify-between">
-                      <p className="text-[12.5px] font-bold">{e.role}, <span className="font-normal italic">{e.company}</span></p>
-                      <span className="font-sans text-[10.5px] text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                      <p className="text-[12.5px] font-bold" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role}, <span className="font-normal italic" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}</span></p>
+                      <span className="font-sans text-[10.5px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                     </div>
                     <ul className="mt-1 list-disc pl-5 text-[12px] font-sans space-y-0.5 text-neutral-700">
-                      {e.bullets.filter(Boolean).map((b, i) => <li key={i}>{b}</li>)}
+                      {e.bullets.filter(Boolean).map((b, i) => <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}>{b}</li>)}
                     </ul>
                   </div>
                 ))}
@@ -2079,18 +2203,18 @@ export default function ResumeDoc({
           )}
 
           {xp.length > 0 && (
-            <section>
+            <section {...getSectionProps("experience", onSelectSection)}>
               <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: accent }}># Experience Log</h2>
               <div className="mt-2.5 space-y-3.5 font-sans">
                 {xp.map((e) => (
-                  <div key={e.id}>
+                  <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                     <div className="flex items-baseline justify-between">
-                      <p className="font-mono text-[13px] font-bold text-neutral-900">{e.role} <span style={{ color: accent }}>@ {e.company}</span></p>
-                      <span className="font-mono text-[10px] text-neutral-500">[{[e.start, e.end].filter(Boolean).join(" : ")}]</span>
+                      <p className="font-mono text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} <span style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>@ {e.company}</span></p>
+                      <span className="font-mono text-[10px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>[{[e.start, e.end].filter(Boolean).join(" : ")}]</span>
                     </div>
                     <ul className="mt-1 space-y-1 text-[12px] leading-snug text-neutral-700">
                       {e.bullets.filter(Boolean).map((b, i) => (
-                        <li key={i} className="flex gap-2">
+                        <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2">
                           <span className="font-mono font-bold" style={{ color: accent }}>-&gt;</span> {b}
                         </li>
                       ))}
@@ -2168,19 +2292,19 @@ export default function ResumeDoc({
             )}
 
             {xp.length > 0 && (
-              <section>
+              <section {...getSectionProps("experience", onSelectSection)}>
                 <h2 className="font-display text-xs font-black uppercase tracking-wider border-b pb-1" style={{ borderColor: accent, color: accent }}>Career Chronology</h2>
                 <div className="mt-2.5 space-y-3.5">
                   {xp.map((e) => (
-                    <div key={e.id}>
+                    <div key={e.id} {...getItemProps("experience", "role", e.id, onSelectSection)}>
                       <div className="flex items-baseline justify-between">
-                        <p className="text-[13px] font-bold text-neutral-900">{e.role} — <span style={{ color: accent }}>{e.company}</span></p>
-                        <span className="font-mono text-[10px] font-semibold text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</span>
+                        <p className="text-[13px] font-bold text-neutral-900" {...getItemProps("experience", "role", e.id, onSelectSection)}>{e.role} — <span style={{ color: accent }} {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.company}</span></p>
+                        <span className="font-mono text-[10px] font-semibold text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</span>
                       </div>
-                      {e.location && <p className="text-[11px] text-neutral-500">{e.location}</p>}
+                      {e.location && <p className="text-[11px] text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}>{e.location}</p>}
                       <ul className="mt-1 space-y-1">
                         {e.bullets.filter(Boolean).map((b, i) => (
-                          <li key={i} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
+                          <li key={i} {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)} className="flex gap-2 text-[12px] leading-snug text-neutral-700">
                             <span className="mt-[6px] h-1.5 w-1.5 shrink-0" style={{ background: accent }} /> {b}
                           </li>
                         ))}
@@ -2297,7 +2421,7 @@ export default function ResumeDoc({
 
           {xp.length > 0 && (
             <section
-              data-section="experience"
+              {...getSectionProps("experience", onSelectSection)}
               className="group/sec transition-colors hover:bg-pine/5 rounded p-1.5 -m-1.5"
             >
               <h2 className={secCls(craft, atlas)} style={{ color: craft ? undefined : accent }}>{craft && <span className="mx-auto block max-w-[140px] border-b-2 pb-1 text-center" style={{ borderColor: accent }}>Experience</span>}{!craft && "Experience"}</h2>
@@ -2305,29 +2429,24 @@ export default function ResumeDoc({
                 {xp.map((e) => (
                   <div
                     key={e.id}
-                    data-section="experience"
-                    data-item-id={e.id}
+                    {...getItemProps("experience", "role", e.id, onSelectSection)}
                     className="hover:bg-pine/10 p-1.5 rounded transition-colors"
                   >
                     <div className={`flex items-baseline justify-between gap-3 ${craft ? "justify-center gap-2" : ""}`}>
                       <p
-                        data-section="experience"
-                        data-subfield="role"
-                        data-item-id={e.id}
+                        {...getItemProps("experience", "role", e.id, onSelectSection)}
                         className="text-[13.5px] font-bold hover:underline hover:decoration-pine"
                       >
-                        {e.role}{e.company && <span className="font-semibold" data-section="experience" data-subfield="company" data-item-id={e.id}> — {e.company}</span>}{e.location && <span className="font-normal text-neutral-500"> · {e.location}</span>}
+                        {e.role}{e.company && <span className="font-semibold" {...getItemProps("experience", "company", e.id, onSelectSection)}> — {e.company}</span>}{e.location && <span className="font-normal text-neutral-500" {...getItemProps("experience", "company", e.id, onSelectSection)}> · {e.location}</span>}
                       </p>
-                      {!craft && <p className="shrink-0 font-mono text-[10px] text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</p>}
+                      {!craft && <p className="shrink-0 font-mono text-[10px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</p>}
                     </div>
-                    {craft && (e.start || e.end) && <p className="text-center font-mono text-[10px] text-neutral-500">{[e.start, e.end].filter(Boolean).join(" – ")}</p>}
+                    {craft && (e.start || e.end) && <p className="text-center font-mono text-[10px] text-neutral-500" {...getItemProps("experience", "start", e.id, onSelectSection)}>{[e.start, e.end].filter(Boolean).join(" – ")}</p>}
                     <ul className={`mt-1 space-y-1 ${craft ? "list-disc pl-5" : ""}`}>
                       {e.bullets.filter(Boolean).map((b, i) => (
                         <li
                           key={i}
-                          data-section="experience"
-                          data-subfield="bullets"
-                          data-item-id={e.id}
+                          {...getItemProps("experience", "bullets", e.id, onSelectSection, b, i)}
                           className={`text-[12.5px] leading-snug ${craft ? "" : "flex gap-2"} hover:underline hover:decoration-pine`}
                         >
                           {!craft && <span className="mt-[7px] h-[3px] w-[3px] shrink-0 rounded-full" style={{ background: accent }} />}
